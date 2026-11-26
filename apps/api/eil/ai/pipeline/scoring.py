@@ -88,9 +88,9 @@ async def propose_score_assist(
     )
     valid = {criterion.criterion for criterion in criteria}
     scores = {
-        key: score_assist.score
-        for key, score_assist in (result.scores or {}).items()
-        if key in valid and score_assist.score in (1, 2, 3, 4, 5)
+        entry.criterion: entry.score
+        for entry in (result.scores or [])
+        if entry.criterion in valid and entry.score in (1, 2, 3, 4, 5)
     }
     return {"scores": scores, "explanation": result.explanation}
 

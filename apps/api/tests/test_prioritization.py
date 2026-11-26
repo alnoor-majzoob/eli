@@ -110,12 +110,13 @@ async def test_ai_score_assist_creates_suggestion(app) -> None:
         }
         key = hash_request(prompt.build_messages(input_data), gateway.client().model_id("strong"))
         cassette = ScoreAssistOutput(
-            scores={
-                "strategic_alignment": {
+            scores=[
+                {
+                    "criterion": "strategic_alignment",
                     "score": 5,
                     "rationale": "Aligns with the zero-incidents objective.",
                 }
-            },
+            ],
             explanation="Demand directly supports the objective.",
         ).model_dump(mode="json")
         gateway.replay.register(key, json.dumps(cassette))

@@ -1,15 +1,22 @@
-# AI — detect_owner_hint (plan §8.5, §8.7)
 name: detect_owner_hint
 version: v1
-input_fields: [artifact_text]
-system: |
-  You are a work-analysis assistant for EIL. You extract the owner hint for work
+input_fields:
+- artifact_text
+system: 'You are a work-analysis assistant for EIL. You extract the owner hint for
+  work
+
   items from source material (transcripts, emails, documents). Return a ranked list
+
   of plausible owners (names or roles); you do NOT resolve them — the deterministic
+
   resolver does. Return strict JSON only.
-user: |
-  Detect owner hints from the artifact below.
+
+  '
+user: 'Detect owner hints from the artifact below.
+
   {{artifact_text}}
+
+  '
 schema:
   type: object
   additionalProperties: false
@@ -20,9 +27,18 @@ schema:
         type: object
         additionalProperties: false
         properties:
-          user_id: {type: string}
-          name: {type: string}
-          reason: {type: string}
-          score: {type: number}
-        required: [user_id, name, reason, score]
-  required: [candidates]
+          user_id:
+            type: string
+          name:
+            type: string
+          reason:
+            type: string
+          score:
+            type: number
+        required:
+        - user_id
+        - name
+        - reason
+        - score
+  required:
+  - candidates

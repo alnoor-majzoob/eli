@@ -140,12 +140,13 @@ class RerankLinksOutput(BaseModel):
 
 
 class ScoreAssistScore(BaseModel):
+    criterion: str
     score: int = Field(ge=1, le=5)
     rationale: str | None = None
 
 
 class ScoreAssistOutput(BaseModel):
-    scores: dict[str, ScoreAssistScore] = Field(default_factory=dict)
+    scores: list[ScoreAssistScore] = Field(default_factory=list)
     explanation: str | None = None
 
 
