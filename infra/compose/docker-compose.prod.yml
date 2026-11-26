@@ -46,6 +46,7 @@ x-api-env: &api-env
   CONNECTOR_MODE_EAM: ${CONNECTOR_MODE_EAM:-sim}
   CONNECTOR_MODE_ERP: ${CONNECTOR_MODE_ERP:-sim}
   CONNECTOR_MODE_HR: ${CONNECTOR_MODE_HR:-sim}
+  M365_SIM_URL: ${M365_SIM_URL:-http://m365-sim:9105}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
   LOG_FORMAT: json
   METRICS_ENABLED: "true"
@@ -212,6 +213,24 @@ services:
       - "127.0.0.1:${GRAFANA_PORT:-18030}:3000"
     depends_on:
       - prometheus
+    restart: unless-stopped
+    logging: *default-logging
+
+  m365-sim:
+    build:
+      context: ../..
+      dockerfile: apps/mocks/m365_sim/Dockerfile
+    ports:
+      - "127.0.0.1:${M365_SIM_PORT:-19105}:9105"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:9105/health'', timeout=3)"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
     logging: *default-logging
 
