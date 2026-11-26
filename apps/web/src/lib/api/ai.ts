@@ -54,9 +54,14 @@ export async function getAiSuggestionDetail(id: string): Promise<AiSuggestionDet
 
 export async function acceptAiSuggestion(
   id: string,
-  payload?: Record<string, unknown>,
+  editedPayload?: Record<string, unknown>,
+  reason?: string,
 ): Promise<AiSuggestion> {
-  const { data } = await api.POST(`/api/v1/ai/suggestions/${id}/accept` as any, { body: payload });
+  const body =
+    editedPayload !== undefined || reason
+      ? { payload: editedPayload, reason }
+      : undefined;
+  const { data } = await api.POST(`/api/v1/ai/suggestions/${id}/accept` as any, { body });
   return (data ?? {}) as AiSuggestion;
 }
 

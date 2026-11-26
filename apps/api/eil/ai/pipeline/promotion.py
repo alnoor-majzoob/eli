@@ -28,6 +28,7 @@ from eil.modules.audit.service import record_audit
 from eil.modules.execution.models import WorkItem, WorkLink, WorkType
 from eil.modules.graph.cache import graph_cache
 from eil.modules.identity.rbac import PermissionContext
+from eil.modules.integration.models import SourceArtifact
 
 _EXTRACTED_TYPES: dict[str, WorkType] = {
     "task": WorkType.TASK,
@@ -72,16 +73,16 @@ async def _promote_extracted(
 
     artifact_id = payload.get("artifact_id")
     if artifact_id:
-        session.add(
-            WorkLink(
-                src_id=item.id,
-                dst_id=UUID(str(artifact_id)),
-                link_type="derived_from",
-                origin="ai",
-                status="active",
-                weight=1,
-            )
-        )
+        aid = UUID(str(artifact_id))
+        artifact = await session.get(SourceArtifact, aid)
+        if artifact is not None:
+            attrs = dict(item.attributes or {})
+            attrs["source_artifact_id"] = str(artifact.id)
+            attrs["source_id"] = str(artifact.source_id)
+            attrs["source_external_id"] = artifact.external_id
+            attrs["source_kind"] = artifact.kind
+            item.attributes = attrs
+            session.add(item)
 
     owner_hint = payload.get("owner_hint")
     if owner_hint:

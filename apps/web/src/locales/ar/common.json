@@ -176,7 +176,15 @@
     "rejectReason": "سبب الرفض",
     "editAndAccept": "تحرير وقبول",
     "selectForBulk": "اختر للموافقة الجماعية",
-    "bulkReject": "رفض المحدد"
+    "bulkReject": "رفض المحدد",
+    "fieldTitle": "العنوان",
+    "fieldSummary": "الملخص",
+    "fieldKind": "النوع",
+    "fieldPriority": "الأولوية",
+    "fieldOwnerHint": "تلميح المالك",
+    "fieldDuePhrase": "عبارة الاستحقاق",
+    "reviewReasonPlaceholder": "ملاحظة / سبب اختياري",
+    "saveAndAccept": "حفظ واعتماد"
   },
   "integration": {
     "title": "الموصلات والمصادر",

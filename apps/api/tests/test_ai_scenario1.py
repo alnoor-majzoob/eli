@@ -150,19 +150,8 @@ async def test_scenario1_extraction_and_promotion(client: AsyncClient, auth, app
             assert item.title == "Replace pump assembly on line 3"
             assert item.type == "task"
 
-        # derived_from link to the source artifact.
-        link = (
-            (
-                await session.execute(
-                    select(WorkLink).where(
-                        WorkLink.src_id == item.id, WorkLink.link_type == "derived_from"
-                    )
-                )
-            )
-            .scalars()
-            .first()
-        )
-        assert link is not None and link.dst_id == artifact.id
+        # Source provenance stored on the promoted work item.
+        assert item.attributes.get("source_artifact_id") == str(artifact.id)
 
         # llm_call telemetry recorded (replay mode).
         calls = (

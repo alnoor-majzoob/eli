@@ -176,7 +176,15 @@
     "rejectReason": "Rejection reason",
     "editAndAccept": "Edit & accept",
     "selectForBulk": "Select for bulk",
-    "bulkReject": "Reject selected"
+    "bulkReject": "Reject selected",
+    "fieldTitle": "Title",
+    "fieldSummary": "Summary",
+    "fieldKind": "Kind",
+    "fieldPriority": "Priority",
+    "fieldOwnerHint": "Owner hint",
+    "fieldDuePhrase": "Due phrase",
+    "reviewReasonPlaceholder": "Optional note / reason",
+    "saveAndAccept": "Save & accept"
   },
   "integration": {
     "title": "Connectors & sources",

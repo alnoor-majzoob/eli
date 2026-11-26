@@ -243,18 +243,8 @@ async def test_accept_extracted_suggestion_creates_item(app) -> None:
         assert item.origin == "ai_extracted"
         assert item.title == "Replace pump assembly"
 
-        link = (
-            (
-                await session.execute(
-                    select(WorkLink).where(
-                        WorkLink.src_id == item.id, WorkLink.link_type == "derived_from"
-                    )
-                )
-            )
-            .scalars()
-            .first()
-        )
-        assert link is not None and link.dst_id == artifact.id
+        assert item.attributes.get("source_artifact_id") == str(artifact.id)
+        assert item.attributes.get("source_kind") == artifact.kind
 
 
 async def test_record_feedback_and_weekly_metrics(app) -> None:
