@@ -83,7 +83,7 @@ class GroqClient:
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
         if response_format is not None:
-            payload["response_format"] = {"type": "json_object", "json_schema": response_format}
+            payload["response_format"] = {"type": "json_schema", "json_schema": response_format}
         if tools is not None:
             payload["tools"] = tools
 

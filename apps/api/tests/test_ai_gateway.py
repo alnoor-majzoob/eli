@@ -58,7 +58,7 @@ async def test_groq_client_request_shape() -> None:
         payload = json.loads(request.content)
         assert payload["model"] == "m-fast"
         assert payload["response_format"] == {
-            "type": "json_object",
+            "type": "json_schema",
             "json_schema": {"type": "object"},
         }
     finally:
