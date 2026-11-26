@@ -69,7 +69,8 @@ class PromptSpec:
         return f"{self.stamped()}+{self.hash()[:12]}"
 
     def json_schema_payload(self) -> dict[str, Any]:
-        return {"name": self.stamped(), "schema": self.schema, "strict": True}
+        # Groq/OpenAI json_schema.name allows only [a-zA-Z0-9_-].
+        return {"name": self.stamped().replace("@", "_"), "schema": self.schema, "strict": True}
 
     def build_messages(self, input_data: dict[str, Any]) -> list[dict[str, str]]:
         user = re.sub(

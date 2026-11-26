@@ -65,6 +65,12 @@ async def test_groq_client_request_shape() -> None:
         await client._http.aclose()
 
 
+def test_prompt_json_schema_name_is_provider_safe() -> None:
+    name = prompt_registry.get("detect_candidates").json_schema_payload()["name"]
+    assert name == "detect_candidates_v1"
+    assert "@" not in name
+
+
 async def test_groq_client_retries_on_5xx() -> None:
     settings = Settings(llm_mode="live", groq_api_key="gsk-test", llm_max_retries=3)
     client = GroqClient(settings)
