@@ -1,0 +1,65 @@
+{
+  "scenario": 3,
+  "name": "Resource Conflict",
+  "description": "Seeded starting state: three competing commitments/tasks for the rotating equipment engineer — weeks 12–14 are at ~130% utilisation (amber at 85%, red at 100%).",
+  "seeded_by": "make seed-demo (scripts/seed_demo.sh); demo kit: docs/runbooks/scenario-3.md",
+  "entities": {
+    "objectives": [
+      {
+        "title": "Reliability — compressor fleet availability ≥ 99%",
+        "type": "objective",
+        "department": "reliability",
+        "status": "active",
+        "confidence": 0.8
+      }
+    ],
+    "work_items": [
+      {
+        "title": "Rotor replacement — Unit A",
+        "type": "commitment",
+        "status": "active",
+        "allocated_to": "rotating equipment engineer",
+        "week_start": "2026-03-09",
+        "week_end": "2026-04-04",
+        "hours_total": 24
+      },
+      {
+        "title": "Field inspection — Station B",
+        "type": "commitment",
+        "status": "active",
+        "allocated_to": "rotating equipment engineer",
+        "week_start": "2026-03-16",
+        "week_end": "2026-04-29",
+        "hours_total": 40
+      },
+      {
+        "title": "Emergency response — Site C",
+        "type": "task",
+        "status": "active",
+        "allocated_to": "rotating equipment engineer",
+        "week_start": "2026-03-09",
+        "week_end": "2026-04-18",
+        "hours_total": 16
+      }
+    ],
+    "allocations": [
+      {
+        "resource": "rotating equipment engineer",
+        "weeks": ["2026-03-09", "2026-03-16", "2026-03-23", "2026-03-30", "2026-04-06"],
+        "hours_per_week": 30,
+        "note": "weeks 12–14 ~130% utilisation (demo scenario seed)"
+      }
+    ],
+    "sim_records": {
+      "hr": [
+        {
+          "type": "person",
+          "employee_id": "HR-7002",
+          "name": "Zahra Al-Mansoori",
+          "org_unit_id": "reliability",
+          "title": "Rotating Equipment Engineer"
+        }
+      ]
+    }
+  }
+}

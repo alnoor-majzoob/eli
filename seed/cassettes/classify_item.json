@@ -1,0 +1,7 @@
+[
+  {
+    "key": "d5c0e272b7df1f76679c70be63947dd8b4d5d45f4f13e2a514c0ea28fa4206ad",
+    "response": "{\"items\":[{\"type\":\"task\",\"category\":\"maintenance\",\"department\":\"maintenance\",\"hse_critical\":false,\"regulatory\":false,\"confidence\":0.8,\"reasons\":[\"Replace the failed pump assembly on line 3; replace by Friday.\",\"maintenance action with due date\"]}]}",
+    "model_id": "replay"
+  }
+]

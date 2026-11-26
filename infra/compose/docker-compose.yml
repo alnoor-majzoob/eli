@@ -1,0 +1,238 @@
+name: eil
+
+x-api-build: &api-build
+  context: ../..
+  dockerfile: apps/api/Dockerfile
+
+x-api-env: &api-env
+  APP_ENV: ${APP_ENV:-local}
+  DATABASE_URL: postgresql+asyncpg://eil:${POSTGRES_PASSWORD:-eil}@postgres:5432/eil
+  REDIS_URL: redis://redis:6379/0
+  OBJECT_STORE_BACKEND: local
+  OBJECT_STORE_LOCAL_DIR: /data/objects
+  AUTH_MODE: oidc
+  OIDC_ISSUER_URL: http://localhost:8080/realms/eil
+  OIDC_DISCOVERY_URL: http://keycloak:8080/realms/eil
+  OIDC_CLIENT_ID_WEB: eil-web
+  OIDC_AUDIENCE: eil-api
+  CORS_ORIGINS: '["http://localhost:3000"]'
+  LOG_FORMAT: json
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  METRICS_ENABLED: "true"
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  AI_ENABLED: ${AI_ENABLED:-false}
+  LLM_MODE: ${LLM_MODE:-replay}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: eil
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eil}
+      POSTGRES_DB: eil
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eil -d eil"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-eilminio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-eilminio123}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8025/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: eil
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-eil}
+      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ../keycloak/realm-eil.json:/opt/keycloak/data/import/realm-eil.json:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  api:
+    build: *api-build
+    environment:
+      <<: *api-env
+      RUN_MIGRATIONS: "1"
+    command: ["uvicorn", "eil.asgi:app", "--host", "0.0.0.0", "--port", "8000"]
+    volumes:
+      - api_objects:/data/objects
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:8000/healthz'', timeout=3)"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  worker:
+    build: *api-build
+    environment:
+      <<: *api-env
+      RUN_MIGRATIONS: "0"
+    command:
+      [
+        "celery",
+        "-A",
+        "eil.workers.celery_app:celery_app",
+        "worker",
+        "--loglevel=INFO",
+        "--concurrency=2",
+      ]
+    volumes:
+      - api_objects:/data/objects
+    depends_on:
+      api:
+        condition: service_healthy
+
+  beat:
+    build: *api-build
+    environment:
+      <<: *api-env
+      RUN_MIGRATIONS: "0"
+    command: ["celery", "-A", "eil.workers.celery_app:celery_app", "beat", "--loglevel=INFO"]
+    volumes:
+      - api_objects:/data/objects
+    depends_on:
+      api:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+        VITE_OIDC_AUTHORITY: http://localhost:8080/realms/eil
+        VITE_OIDC_CLIENT_ID: eil-web
+        VITE_OIDC_REDIRECT_URI: http://localhost:3000/auth/callback
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.140.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ../otel/collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:12.3.1
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  promdata:
+  grafanadata:
+  api_objects:

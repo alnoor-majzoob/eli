@@ -1,0 +1,25 @@
+{
+  "name": "eil",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @eil/web dev",
+    "build": "pnpm --filter @eil/web build",
+    "preview": "pnpm --filter @eil/web preview",
+    "test": "pnpm --filter @eil/web test",
+    "lint": "pnpm --filter @eil/web lint",
+    "typecheck": "pnpm --filter @eil/web typecheck",
+    "openapi:generate": "pnpm --filter @eil/api-client generate",
+    "e2e": "pnpm --filter @eil/web e2e",
+    "commitlint": "commitlint --from HEAD~1 --to HEAD --verbose"
+  },
+  "devDependencies": {
+    "prettier": "^3.10.1",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4"
+  }
+}

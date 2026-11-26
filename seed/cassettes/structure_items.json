@@ -1,0 +1,12 @@
+[
+  {
+    "key": "8d1411803a628955d3e59709d51625c97db28fd9fde1c38ca389b190f4657f21",
+    "response": "{\"items\":[{\"title\":\"Review HSSE weekly review follow-ups\",\"summary\":\"Conduct the HSSE weekly review and capture the agreed follow-ups.\",\"kind\":\"decision\",\"evidence_quote\":\"HSSE weekly review\",\"speaker\":\"aisha@example.invalid\",\"confidence\":0.85,\"priority\":2,\"owner_hint\":null,\"due_phrase\":null,\"duplicate_of_index\":null}]}",
+    "model_id": "replay"
+  },
+  {
+    "key": "dada0db95458057e86026b82db7f44d11084e10701b543c62684435eb8b9698b",
+    "response": "{\"items\":[{\"title\":\"Replace pump assembly on line 3\",\"summary\":\"Replace the failed pump assembly on line 3; replace by Friday.\",\"kind\":\"task\",\"evidence_quote\":\"K-201 Overhaul Weekly\",\"speaker\":\"fatma@example.invalid\",\"confidence\":0.92,\"priority\":1,\"owner_hint\":\"fatma@example.invalid\",\"due_phrase\":\"by Friday\",\"duplicate_of_index\":null}]}",
+    "model_id": "replay"
+  }
+]

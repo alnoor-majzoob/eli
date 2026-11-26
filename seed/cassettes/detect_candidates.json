@@ -1,0 +1,37 @@
+[
+  {
+    "key": "8b6ff5782c0d4b2e6327353f05da0d820ba01e4a8f726b4c1660b8dfa8efc2f2",
+    "response": "{\"candidates\":[{\"title\":\"Review HSSE weekly review follow-ups\",\"kind\":\"decision\",\"summary\":\"Conduct the HSSE weekly review and capture the agreed follow-ups.\",\"evidence_quote\":\"HSSE weekly review\",\"speaker\":\"aisha@example.invalid\",\"confidence\":0.85,\"owner_hint\":null,\"due_phrase\":null}]}",
+    "model_id": "replay"
+  },
+  {
+    "key": "d93e8774bd227bb70e49f5b50eec5e6684061e88e2345bae5203bb1434193823",
+    "response": "{\"candidates\":[]}",
+    "model_id": "replay"
+  },
+  {
+    "key": "ea7948177ff1a7e226169d0a78fc0acdce10b223f90d5bf138070deb557183b9",
+    "response": "{\"candidates\":[]}",
+    "model_id": "replay"
+  },
+  {
+    "key": "a60732cc4bc4d26f4f178f53c9bbf589e023ef538a80ef196f47512149bbca35",
+    "response": "{\"candidates\":[]}",
+    "model_id": "replay"
+  },
+  {
+    "key": "28199a7d4c1c7ce76629658bf333a9699d73e8056616dd3da0aaaffa395ac75d",
+    "response": "{\"candidates\":[]}",
+    "model_id": "replay"
+  },
+  {
+    "key": "d36f7d77775b01cdc9059df724ef1ffdebf688951f0831ec47b45bd09eaede33",
+    "response": "{\"candidates\":[]}",
+    "model_id": "replay"
+  },
+  {
+    "key": "c6c04513cad89a6e21f4c118aa601d273e3fee84d495363bd9282da6b76b9a2a",
+    "response": "{\"candidates\":[{\"title\":\"Replace pump assembly on line 3\",\"kind\":\"task\",\"summary\":\"Replace the failed pump assembly on line 3; replace by Friday.\",\"evidence_quote\":\"K-201 Overhaul Weekly\",\"speaker\":\"fatma@example.invalid\",\"confidence\":0.92,\"owner_hint\":\"fatma@example.invalid\",\"due_phrase\":\"by Friday\"}]}",
+    "model_id": "replay"
+  }
+]

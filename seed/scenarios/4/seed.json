@@ -1,0 +1,48 @@
+{
+  "scenario": 4,
+  "name": "Cross-System Execution Risk",
+  "description": "Seeded starting state: eam-sim has the work order 'WO-201-ROTOR-1' (rotor repair, open) that the presenter will slip by 3 weeks via `POST /demo/inject-event` during the runbook; the p6-sim counterpart is visible as a milestone on the K-201 Overhaul chain.",
+  "seeded_by": "make seed-demo (scripts/seed_demo.sh); demo kit: docs/runbooks/scenario-4.md",
+  "entities": {
+    "objectives": [
+      {
+        "title": "Reliability — K-201 overhaul availability ≥ 99%",
+        "type": "objective",
+        "department": "operations",
+        "status": "active"
+      }
+    ],
+    "work_items": [
+      {
+        "title": "Rotor repair — WO-201-ROTOR-1",
+        "type": "task",
+        "status": "active",
+        "asset_id": "ASSET-201",
+        "planned_end": "2026-11-29",
+        "external_ref": "WO-201-ROTOR-1",
+        "system": "eam",
+        "note": "Slip injected by presenter: +3 weeks (demo event)"
+      }
+    ],
+    "sim_records": {
+      "eam": [
+        {
+          "type": "work_order",
+          "work_order_number": "WO-201-ROTOR-1",
+          "description": "Rotor replacement on ASSET-201",
+          "status": "Open",
+          "asset_id": "ASSET-201",
+          "due_date": "2026-11-29",
+          "priority": "High"
+        }
+      ],
+      "p6": [
+        {
+          "type": "milestone",
+          "activity_id": "DEMO-301",
+          "description": "K-201 Overhaul — rotor replacement (synthetic demo event)"
+        }
+      ]
+    }
+  }
+}

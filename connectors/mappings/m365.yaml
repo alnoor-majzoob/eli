@@ -1,0 +1,47 @@
+# M365 connector — Graph-shaped: meetings, messages, documents (plan §10, Phase 3, T3.3).
+mappings:
+  - record_type: meeting
+    id_field: id
+    fields:
+      - canonical: title
+        source: subject
+      - canonical: description
+        source: body
+      - canonical: organizer
+        source: organizer
+      - canonical: attendees
+        source: attendees
+      - canonical: start_time
+        source: start
+        transform: iso_datetime
+      - canonical: end_time
+        source: end
+        transform: iso_datetime
+      - canonical: url
+        source: joinUrl
+  - record_type: message
+    id_field: id
+    fields:
+      - canonical: sender
+        source: from
+      - canonical: subject
+        source: subject
+      - canonical: description
+        source: body
+      - canonical: received_at
+        source: receivedDateTime
+        transform: iso_datetime
+  - record_type: document
+    id_field: id
+    fields:
+      - canonical: title
+        source: name
+      - canonical: description
+        source: description
+      - canonical: url
+        source: webUrl
+      - canonical: path
+        source: path
+      - canonical: size_bytes
+        source: size
+        transform: int

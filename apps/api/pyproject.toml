@@ -1,0 +1,102 @@
+[project]
+name = "eil-api"
+version = "0.1.0"
+description = "EIL — Enterprise Execution Intelligence Layer API"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.20,<2",
+    "aiosqlite>=0.22,<1",
+    "asyncpg>=0.32,<1",
+    "celery[redis]>=5.7,<6",
+    "fastapi>=0.165,<1",
+    "httpx>=0.28,<1",
+    "opentelemetry-api>=1.40,<2",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.40,<2",
+    "opentelemetry-instrumentation-fastapi>=0.61b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.61b0",
+    "opentelemetry-sdk>=1.40,<2",
+    "prometheus-client>=0.26,<1",
+    "pyyaml>=6.0.2,<7",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.16,<3",
+    "PyJWT[crypto]>=2.10,<3",
+    "redis>=8.1,<9",
+    "sqlalchemy[asyncio]>=2.0.44,<3",
+    "structlog>=26.1,<27",
+    "tenacity>=9.1,<10",
+    "uvicorn[standard]>=0.54,<1",
+    "ortools>=9.15.6755",
+]
+
+[project.optional-dependencies]
+dev = [
+    "asgi-lifespan>=2.1,<3",
+    "mypy>=1.19,<2",
+    "pytest>=8.4,<9",
+    "pytest-asyncio>=1.3,<2",
+    "respx>=0.22,<1",
+    "ruff>=0.14,<1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["eil"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
+ignore = ["B008", "RUF012"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+check_untyped_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+exclude = ["migrations/"]
+
+[[tool.mypy.overrides]]
+module = ["celery.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# OR-Tools exposes model methods dynamically; skip its incomplete stubs.
+module = ["ortools.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# The connector SDK lives at repo root (`connectors/`); the backend imports it at runtime.
+module = ["connectors.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# PyYAML has no bundled stubs in this environment; the API depends on it for prompts.
+module = ["yaml"]
+ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "pip-audit>=2.9.0",
+]

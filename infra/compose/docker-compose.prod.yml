@@ -1,0 +1,261 @@
+# Production compose for a single VPS with direct port mappings.
+#
+# No Caddy, no external nginx, no Keycloak. The web container's nginx is kept
+# only as a static-file server. Authentication is the demo/dev login
+# (APP_ENV=demo + AUTH_MODE=dev), so only expose the ports to trusted clients.
+#
+# Usage:
+#   cp .env.prod.example .env.prod
+#   docker compose -f infra/compose/docker-compose.prod.yml --env-file .env.prod up -d --build
+
+name: eil
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-api-build: &api-build
+  context: ../..
+  dockerfile: apps/api/Dockerfile
+
+x-api-env: &api-env
+  APP_ENV: demo
+  APP_NAME: EIL
+  API_PREFIX: /api/v1
+  TENANT_TIMEZONE: Asia/Muscat
+  DEFAULT_LOCALE: en
+  DATABASE_URL: postgresql+asyncpg://eil:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}@postgres:5432/eil
+  REDIS_URL: redis://redis:6379/0
+  OBJECT_STORE_BACKEND: local
+  OBJECT_STORE_LOCAL_DIR: /data/objects
+  AUTH_MODE: dev
+  DEV_JWT_SECRET: ${DEV_JWT_SECRET:?set DEV_JWT_SECRET in .env.prod}
+  DEV_JWT_TTL_MINUTES: ${DEV_JWT_TTL_MINUTES:-480}
+  CORS_ORIGINS: '["http://${EIL_HOST:?set EIL_HOST in .env.prod}:${EIL_WEB_PORT:-18080}"]'
+  TRUSTED_HOSTS: '["${EIL_HOST:?set EIL_HOST in .env.prod}","127.0.0.1","localhost","api"]'
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS: "600"
+  RATE_LIMIT_WINDOW_SECONDS: "60"
+  AI_ENABLED: ${AI_ENABLED:-false}
+  LLM_MODE: ${LLM_MODE:-replay}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+  CONNECTOR_MODE_M365: ${CONNECTOR_MODE_M365:-sim}
+  CONNECTOR_MODE_P6: ${CONNECTOR_MODE_P6:-sim}
+  CONNECTOR_MODE_EAM: ${CONNECTOR_MODE_EAM:-sim}
+  CONNECTOR_MODE_ERP: ${CONNECTOR_MODE_ERP:-sim}
+  CONNECTOR_MODE_HR: ${CONNECTOR_MODE_HR:-sim}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_FORMAT: json
+  METRICS_ENABLED: "true"
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  OUTBOX_INLINE_DISPATCHER: "true"
+  SSE_ENABLED: "true"
+  REPLAY_CASSETTE_DIR: ./seed/cassettes
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: eil
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+      POSTGRES_DB: eil
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eil -d eil"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    logging: *default-logging
+
+  api:
+    build: *api-build
+    environment:
+      <<: *api-env
+      RUN_MIGRATIONS: "1"
+    command: ["uvicorn", "eil.asgi:app", "--host", "0.0.0.0", "--port", "8000"]
+    volumes:
+      - api_objects:/data/objects
+      - ../../seed:/app/seed:ro
+    ports:
+      - "${EIL_API_PORT:-18000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:8000/healthz'', timeout=3)"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    logging: *default-logging
+
+  worker:
+    build: *api-build
+    environment:
+      <<: *api-env
+      RUN_MIGRATIONS: "0"
+    command:
+      [
+        "celery",
+        "-A",
+        "eil.workers.celery_app:celery_app",
+        "worker",
+        "--loglevel=INFO",
+        "--concurrency=2",
+      ]
+    volumes:
+      - api_objects:/data/objects
+      - ../../seed:/app/seed:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+  beat:
+    build: *api-build
+    environment:
+      <<: *api-env
+      RUN_MIGRATIONS: "0"
+    command: ["celery", "-A", "eil.workers.celery_app:celery_app", "beat", "--loglevel=INFO"]
+    volumes:
+      - api_objects:/data/objects
+      - ../../seed:/app/seed:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_BASE_URL: http://${EIL_HOST:?set EIL_HOST in .env.prod}:${EIL_API_PORT:-18000}
+        VITE_OIDC_AUTHORITY: ""
+        VITE_OIDC_CLIENT_ID: eil-web
+        VITE_OIDC_REDIRECT_URI: ""
+    ports:
+      - "${EIL_WEB_PORT:-18080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    logging: *default-logging
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.140.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ../otel/collector.yaml:/etc/otelcol/config.yaml:ro
+    restart: unless-stopped
+    logging: *default-logging
+
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-18090}:9090"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:12.3.1
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env.prod}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-18030}:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    logging: *default-logging
+
+  # Optional extras. The API uses the local object store, so MinIO is not
+  # required. Start them with:
+  #   docker compose ... --profile extras up -d
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-eilminio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "127.0.0.1:${MINIO_API_PORT:-18010}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-18011}:9001"
+    profiles: ["extras"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    logging: *default-logging
+
+  # Optional: SMTP/notifications are not wired into the API yet.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:${MAILPIT_PORT:-18025}:8025"
+    profiles: ["extras"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8025/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  pgdata:
+  redisdata:
+  promdata:
+  grafanadata:
+  api_objects:
+  miniodata:

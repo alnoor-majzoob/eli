@@ -1,0 +1,6 @@
+apiVersion: v2
+name: eil-api
+description: EIL API — Enterprise Execution Intelligence Layer (plan Phase 9, T9.7).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

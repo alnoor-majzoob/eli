@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "eil.fullname" . }}
+  labels:
+    {{- include "eil.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "eil.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "eil.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "eil.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["uvicorn", "eil.asgi:app", "--host", "0.0.0.0", "--port", "{{ .Values.service.port | toString }}"]
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            - name: DATABASE_URL
+              value: {{ printf "postgresql+asyncpg://%s:%s@%s:%d/%s" .Values.postgres.user .Values.postgres.password .Values.postgres.host .Values.postgres.port .Values.postgres.database | quote }}
+            - name: RUN_MIGRATIONS
+              value: "1"
+            - name: DEV_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "eil.fullname" . }}-secrets
+                  key: devJWTSecret
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "eil.fullname" . }}-secrets
+                  key: oidcClientSecret
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "eil.fullname" . }}-secrets
+                  key: groqApiKey
+            - name: GRAPH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "eil.fullname" . }}-secrets
+                  key: graphClientSecret
+            - name: OBJECT_STORE_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "eil.fullname" . }}-secrets
+                  key: objectStoreAccessKey
+            - name: OBJECT_STORE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "eil.fullname" . }}-secrets
+                  key: objectStoreSecretKey
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.livenessPath }}
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 10
+            periodSeconds: {{ .Values.probes.periodSeconds }}
+            timeoutSeconds: 3
+            failureThreshold: {{ .Values.probes.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readinessPath }}
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: {{ .Values.probes.failureThreshold }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

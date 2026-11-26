@@ -1,0 +1,31 @@
+# Primavera P6 — activities and milestones (plan §10, Phase 3, T3.3).
+mappings:
+  - record_type: activity
+    id_field: activity_code
+    fields:
+      - canonical: title
+        source: activity_name
+      - canonical: description
+        source: activity_description
+      - canonical: status
+        source: activity_status
+        transform: lower
+      - canonical: planned_start
+        source: start_date
+        transform: iso_date
+      - canonical: planned_end
+        source: finish_date
+        transform: iso_date
+      - canonical: attributes.duration
+        source: duration
+        transform: int
+  - record_type: milestone
+    id_field: milestone_code
+    fields:
+      - canonical: title
+        source: milestone_name
+      - canonical: description
+        source: milestone_description
+      - canonical: planned_end
+        source: baseline_finish
+        transform: iso_date

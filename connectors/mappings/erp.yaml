@@ -1,0 +1,26 @@
+# ERP-shaped connector — cost centres, purchase orders, budgets (plan §10, Phase 3, T3.3).
+mappings:
+  - record_type: cost_centre
+    id_field: cost_center_code
+    fields:
+      - canonical: title
+        source: name
+      - canonical: description
+        source: description
+  - record_type: purchase_order
+    id_field: po_number
+    fields:
+      - canonical: title
+        source: po_number
+      - canonical: description
+        source: description
+      - canonical: planned_start
+        source: order_date
+        transform: iso_date
+  - record_type: budget
+    id_field: budget_id
+    fields:
+      - canonical: title
+        source: budget_name
+      - canonical: description
+        source: description

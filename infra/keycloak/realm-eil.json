@@ -1,0 +1,645 @@
+{
+  "realm": "eil",
+  "enabled": true,
+  "displayName": "EIL \u2014 Enterprise Execution Intelligence",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "passwordPolicy": "length(10) and notUsername",
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "roles": {
+    "realm": [
+      {
+        "name": "executive"
+      },
+      {
+        "name": "portfolio_manager"
+      },
+      {
+        "name": "project_manager"
+      },
+      {
+        "name": "dept_head"
+      },
+      {
+        "name": "resource_manager"
+      },
+      {
+        "name": "team_member"
+      },
+      {
+        "name": "pmo_analyst"
+      },
+      {
+        "name": "ai_reviewer"
+      },
+      {
+        "name": "integration_admin"
+      },
+      {
+        "name": "auditor"
+      },
+      {
+        "name": "admin"
+      }
+    ]
+  },
+  "defaultRole": {
+    "name": "default-roles-eil",
+    "description": "${role_default-roles}",
+    "composite": true,
+    "clientRole": false,
+    "containerId": "eil"
+  },
+  "clients": [
+    {
+      "clientId": "eil-web",
+      "name": "EIL Web",
+      "description": "EIL SPA (authorization code + PKCE)",
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://localhost:5173"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*##http://localhost:5173/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "eil-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "eil-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "eil-org-unit-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-userproperty-mapper",
+          "config": {
+            "claim.name": "org_unit_id",
+            "user.attribute": "org_unit_id",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "aisha",
+      "enabled": true,
+      "email": "aisha@example.invalid",
+      "emailVerified": true,
+      "firstName": "Aisha",
+      "lastName": "Al-Zadjali",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "project_manager"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-000000000003",
+          "name": "project_excel_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "projects"
+        ]
+      }
+    },
+    {
+      "username": "fatma",
+      "enabled": true,
+      "email": "fatma@example.invalid",
+      "emailVerified": true,
+      "firstName": "Fatma",
+      "lastName": "Al-Hinai",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "executive"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-000000000001",
+          "name": "executive_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "exec"
+        ]
+      }
+    },
+    {
+      "username": "hr_manager",
+      "enabled": true,
+      "email": "hr_manager@example.invalid",
+      "emailVerified": true,
+      "firstName": "HR",
+      "lastName": "Manager",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "team_member"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-000000000005",
+          "name": "maintenance_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "maintenance"
+        ]
+      }
+    },
+    {
+      "username": "finance_controller",
+      "enabled": true,
+      "email": "finance_controller@example.invalid",
+      "emailVerified": true,
+      "firstName": "Finance",
+      "lastName": "Controller",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "pmo_analyst"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-00000000000a",
+          "name": "finance_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "pmo"
+        ]
+      }
+    },
+    {
+      "username": "satya",
+      "enabled": true,
+      "email": "satya@example.invalid",
+      "emailVerified": true,
+      "firstName": "Ops",
+      "lastName": "Person",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "resource_manager"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-000000000004",
+          "name": "operations_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "ops"
+        ]
+      }
+    },
+    {
+      "username": "oncall_eng",
+      "enabled": true,
+      "email": "oncall_eng@example.invalid",
+      "emailVerified": true,
+      "firstName": "On-call",
+      "lastName": "Engineer",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "team_member"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-000000000005",
+          "name": "maintenance_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "maintenance"
+        ]
+      }
+    },
+    {
+      "username": "cse123",
+      "enabled": true,
+      "email": "cse123@example.invalid",
+      "emailVerified": true,
+      "firstName": "M",
+      "lastName": "E",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ai_reviewer"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-000000000006",
+          "name": "engineering_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "engineering"
+        ]
+      }
+    },
+    {
+      "username": "hsse_lead",
+      "enabled": true,
+      "email": "hsse_lead@example.invalid",
+      "emailVerified": true,
+      "firstName": "HSSE",
+      "lastName": "Lead",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "team_member"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-000000000007",
+          "name": "hsse_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "hsse"
+        ]
+      }
+    },
+    {
+      "username": "it_integration",
+      "enabled": true,
+      "email": "it_integration@example.invalid",
+      "emailVerified": true,
+      "firstName": "IT",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "integration_admin"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-000000000008",
+          "name": "it_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "it"
+        ]
+      }
+    },
+    {
+      "username": "auditor_one",
+      "enabled": true,
+      "email": "auditor_one@example.invalid",
+      "emailVerified": true,
+      "firstName": "Sofia",
+      "lastName": "Auditor",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "auditor"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-000000000009",
+          "name": "audit_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "audit"
+        ]
+      }
+    },
+    {
+      "username": "pnl_chief",
+      "enabled": true,
+      "email": "pnl_chief@example.invalid",
+      "emailVerified": true,
+      "firstName": "Pete",
+      "lastName": "Executive",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "executive"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-000000000001",
+          "name": "executive_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "exec"
+        ]
+      }
+    },
+    {
+      "username": "secretary",
+      "enabled": true,
+      "email": "secretary@example.invalid",
+      "emailVerified": true,
+      "firstName": "Master",
+      "lastName": "Data",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "dept_head"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-00000000000f",
+          "name": "master_data_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "pmo"
+        ]
+      }
+    },
+    {
+      "username": "admin_demo",
+      "enabled": true,
+      "email": "admin_demo@example.invalid",
+      "emailVerified": true,
+      "firstName": "Root",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ],
+      "groups": [
+        {
+          "id": "10000000-0000-0000-0000-000000000010",
+          "name": "admin_group"
+        }
+      ],
+      "attributes": {
+        "org_unit_id": [
+          "exec"
+        ]
+      }
+    }
+  ],
+  "groups": [
+    {
+      "id": "10000000-0000-0000-0000-000000000001",
+      "name": "executive_group",
+      "attributes": {
+        "org_unit_id": [
+          "exec"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000002",
+      "name": "portfolio_group",
+      "attributes": {
+        "org_unit_id": [
+          "pmo"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000003",
+      "name": "project_excel_group",
+      "attributes": {
+        "org_unit_id": [
+          "projects"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000004",
+      "name": "operations_group",
+      "attributes": {
+        "org_unit_id": [
+          "ops"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000005",
+      "name": "maintenance_group",
+      "attributes": {
+        "org_unit_id": [
+          "maintenance"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000006",
+      "name": "engineering_group",
+      "attributes": {
+        "org_unit_id": [
+          "engineering"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000007",
+      "name": "hsse_group",
+      "attributes": {
+        "org_unit_id": [
+          "hsse"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000008",
+      "name": "it_group",
+      "attributes": {
+        "org_unit_id": [
+          "it"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000009",
+      "name": "audit_group",
+      "attributes": {
+        "org_unit_id": [
+          "audit"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-00000000000a",
+      "name": "finance_group",
+      "attributes": {
+        "org_unit_id": [
+          "pmo"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-00000000000b",
+      "name": "sales_group",
+      "attributes": {
+        "org_unit_id": [
+          "exec"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-00000000000c",
+      "name": "logistics_group",
+      "attributes": {
+        "org_unit_id": [
+          "ops"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-00000000000d",
+      "name": "miee_group",
+      "attributes": {
+        "org_unit_id": [
+          "ops"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-00000000000e",
+      "name": "chse_group",
+      "attributes": {
+        "org_unit_id": [
+          "hsse"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-00000000000f",
+      "name": "master_data_group",
+      "attributes": {
+        "org_unit_id": [
+          "pmo"
+        ]
+      }
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000010",
+      "name": "admin_group",
+      "attributes": {
+        "org_unit_id": [
+          "exec"
+        ]
+      }
+    }
+  ],
+  "requiredActions": [
+    {
+      "providerId": "configure_otp",
+      "fromAdmin": true,
+      "priority": 10,
+      "config": {}
+    }
+  ]
+}

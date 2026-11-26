@@ -1,0 +1,19 @@
+# Maximo/SAP-PM-shaped connector — work orders (plan §10, Phase 3, T3.3).
+mappings:
+  - record_type: work_order
+    id_field: work_order_number
+    fields:
+      - canonical: work_order_number
+        source: work_order_number
+      - canonical: title
+        source: description
+      - canonical: description
+        source: notes
+      - canonical: status
+        source: status
+        transform: lower
+      - canonical: asset_id
+        source: asset_id
+      - canonical: planned_end
+        source: due_date
+        transform: iso_date

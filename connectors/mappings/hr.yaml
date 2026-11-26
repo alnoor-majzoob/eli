@@ -1,0 +1,32 @@
+# HR-shaped connector — employees, certifications, leave (plan §10, Phase 3, T3.3).
+mappings:
+  - record_type: employee
+    id_field: employee_id
+    fields:
+      - canonical: name
+        source: name
+      - canonical: description
+        source: job_title
+      - canonical: attributes.department
+        source: department
+  - record_type: certification
+    id_field: certification_id
+    fields:
+      - canonical: name
+        source: certification_name
+      - canonical: description
+        source: issuer
+      - canonical: expiry_date
+        source: expiry_date
+        transform: iso_date
+  - record_type: leave
+    id_field: leave_id
+    fields:
+      - canonical: title
+        source: leave_type
+      - canonical: planned_start
+        source: start_date
+        transform: iso_date
+      - canonical: planned_end
+        source: end_date
+        transform: iso_date

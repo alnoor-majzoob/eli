@@ -1,0 +1,80 @@
+# EIL API Helm chart — plan Phase 9, T9.7.
+#
+# Deploys the API container against PostgreSQL (or the SQLite fallback when
+# DATABASE_URL points at an emptyDir — see the chart README below).
+replicaCount: 1
+
+image:
+  repository: eil-api
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: nginx
+  hosts:
+    - host: eil.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - secretName: eil-api-tls
+  #   hosts:
+  #     - eil.example.com
+
+# Environment for the API container (EIL Settings env vars, case-insensitive).
+env:
+  APP_ENV: prod
+  AUTH_MODE: oidc
+  CORS_ORIGINS: '["https://eil.example.com"]'
+  TRUSTED_HOSTS: '["eil.example.com"]'
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS: "600"
+  RATE_LIMIT_WINDOW_SECONDS: "60"
+  # Live AI usage (set AI_ENABLED=true and provide GROQ_API_KEY via secrets).
+  AI_ENABLED: "false"
+  LLM_MODE: replay
+  CONNECTOR_MODE_M365: live
+  CONNECTOR_MODE_P6: live
+  CONNECTOR_MODE_EAM: live
+  CONNECTOR_MODE_ERP: live
+  CONNECTOR_MODE_HR: live
+  GRAPH_TENANT_ID: ""
+  GRAPH_CLIENT_ID: ""
+
+# Secret values (from templates/api-secret.yaml). Leave empty to manage
+# secrets out-of-band with `kubectl`/`sealed-secrets`.
+secrets:
+  devJWTSecret: ""
+  oidcClientSecret: ""
+  groqApiKey: ""
+  graphClientSecret: ""
+  objectStoreAccessKey: ""
+  objectStoreSecretKey: ""
+
+# PostgreSQL connection (production default).
+postgres:
+  host: postgres
+  port: 5432
+  database: eil
+  user: eil
+  password: changeme
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "256Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+# Production-grade probes: /healthz (liveness), /readyz (readiness).
+probes:
+  livenessPath: /healthz
+  readinessPath: /readyz
+  periodSeconds: 10
+  failureThreshold: 3

@@ -1,0 +1,38 @@
+# AI — structure_items (plan §8.5, §8.7 pass 2)
+name: structure_items
+version: v1
+input_fields: [candidates_json]
+system: |
+  You are a work-analysis assistant for EIL. You turn raw candidate detections into
+  structured work items with provenance.
+
+  Rules:
+  - Quote the source verbatim in `evidence_quote`; never invent facts.
+  - Normalise titles to imperative form.
+  - Set `priority` 1-5 (1 = highest).
+  - `duplicate_of_index` marks candidates that duplicate an earlier item in this list.
+  - Return strict JSON only.
+user: |
+  Structure these candidates into work items with evidence:
+  {{candidates_json}}
+schema:
+  type: object
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1, maxLength: 200}
+          summary: {type: string}
+          kind: {type: string, enum: [task, commitment, decision, milestone]}
+          evidence_quote: {type: string}
+          speaker: {type: string, nullable: true}
+          confidence: {type: number, nullable: true}
+          priority: {type: number, minimum: 1, maximum: 5, nullable: true}
+          due_phrase: {type: string, nullable: true}
+          duplicate_of_index: {type: integer, nullable: true}
+        required: [title, summary, kind, evidence_quote]
+  required: [items]

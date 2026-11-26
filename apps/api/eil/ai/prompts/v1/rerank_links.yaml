@@ -1,0 +1,30 @@
+# AI — rerank_links (plan §8.5, §8.7)
+name: rerank_links
+version: v1
+input_fields: [artifact_text, entities_json]
+system: |
+  You are a work-analysis assistant for EIL. You link new work items to existing
+  objectives and projects by reranking candidate entities by relevance. Only propose
+  links of type `aligns_to` (item → objective) or `part_of` (item → project).
+  Return strict JSON only.
+user: |
+  Rerank links from the artifact to these entities:
+  {{entities_json}}
+  Artifact:
+  {{artifact_text}}
+schema:
+  type: object
+  additionalProperties: false
+  properties:
+    links:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        properties:
+          entity_id: {type: string}
+          link_type: {type: string, enum: [aligns_to, part_of]}
+          rationale: {type: string}
+          confidence: {type: number, nullable: true}
+        required: [entity_id, link_type, rationale]
+  required: [links]

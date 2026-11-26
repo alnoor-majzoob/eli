@@ -1,0 +1,48 @@
+{
+  "scenario": 2,
+  "name": "Strategic Demand to Delivery",
+  "description": "Seeded starting state: a new strategic demand 'Flare Gas Recovery Upgrade' ready for AI-assisted scoring, a portfolio board ready for prioritisation, and an approved delivery template for auto-conversion.",
+  "seeded_by": "make seed-demo (scripts/seed_demo.sh); demo kit: docs/runbooks/scenario-2.md",
+  "entities": {
+    "objectives": [
+      {
+        "title": "Flare Gas Recovery Program",
+        "type": "objective",
+        "department": "engineering",
+        "status": "active",
+        "confidence": 0.0
+      }
+    ],
+    "demands": [
+      {
+        "title": "Flare Gas Recovery Upgrade",
+        "type": "demand",
+        "status": "draft",
+        "submitted_by": "fatma@example.invalid",
+        "aligns_to": "Flare Gas Recovery Program",
+        "benefit_realisation": "Reduce flare emission volume by 30% per year"
+      }
+    ],
+    "work_items": [
+      {
+        "title": "FEED — flare gas recovery upgrade",
+        "type": "project",
+        "status": "active",
+        "wbs": "2342.01.01",
+        "milestones": ["FEED complete", "BES issued", "Full production", "Performance guarantee"],
+        "benefits": ["Reduce flare emission volume by 30% per year", "Improve compressor station capacity"]
+      }
+    ],
+    "sim_records": {
+      "erp": [
+        {
+          "type": "wbs_element",
+          "wbs_id": "2342",
+          "description": "Flare Gas Recovery — FEED",
+          "budget_usd": 0,
+          "forecast_usd": 0
+        }
+      ]
+    }
+  }
+}

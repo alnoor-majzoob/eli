@@ -1,0 +1,61 @@
+{
+  "version": "1",
+  "description": "Initial eval set for extraction/owner/due/duplicate (plan §15.3). Replay cassettes are registered against the real prompts from `eil/ai/evals/initial.json` by `apps/api/scripts/ai_evals.py` — the CI eval gate.",
+  "scenarios": [
+    {
+      "name": "extraction_weekly_meeting_transcript",
+      "prompt": "detect_candidates@v1",
+      "input": {
+        "artifact_text": "1:00:00.000 --> 1:00:03.000\nAisha: The pump on line 3 failed during yesterday's shift.\n1:00:03.500 --> 1:00:06.000\nMariam: We need to replace the assembly by Friday.\n"
+      },
+      "cassette": {
+        "candidates": [
+          {
+            "title": "Replace pump assembly on line 3",
+            "kind": "task",
+            "summary": "Replace the failed pump assembly on line 3",
+            "evidence_quote": "The pump on line 3 failed during yesterday's shift.",
+            "speaker": "Aisha",
+            "confidence": 0.95
+          }
+        ]
+      },
+      "expect_contains": ["Replace pump assembly on line 3", "task"]
+    },
+    {
+      "name": "classification_of_pump_task",
+      "prompt": "classify_item@v1",
+      "input": {
+        "item_json": "{\"id\": \"item-1\", \"title\": \"Replace pump assembly on line 3\"}",
+        "taxonomy_json": "{\"types\": [\"task\"], \"categories\": [\"engineering\"], \"departments\": [\"maintenance\"], \"regulatory\": []}"
+      },
+      "cassette": {
+        "items": [
+          {
+            "type": "task",
+            "category": "engineering",
+            "department": "maintenance",
+            "hse_critical": false,
+            "regulatory": false,
+            "confidence": 0.9,
+            "reasons": ["Pump replacement is an engineering task."]
+          }
+        ]
+      },
+      "expect_contains": ["task", "engineering"]
+    },
+    {
+      "name": "owner_hint_for_pump_task",
+      "prompt": "detect_owner_hint@v1",
+      "input": {
+        "artifact_text": "The pump on line 3 failed during yesterday's shift. We need to replace the assembly."
+      },
+      "cassette": {
+        "candidates": [
+          {"user_id": "aisha", "name": "Aisha Al-Zadjali", "reason": "assignee", "score": 1.0}
+        ]
+      },
+      "expect_contains": ["Aisha"]
+    }
+  ]
+}

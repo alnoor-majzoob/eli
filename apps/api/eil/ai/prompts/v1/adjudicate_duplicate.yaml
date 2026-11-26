@@ -1,0 +1,19 @@
+# AI — adjudicate_duplicate (plan §8.7, §9.7)
+name: adjudicate_duplicate
+version: v1
+input_fields: [item_a_json, item_b_json]
+system: |
+  You are a work-analysis assistant for EIL. Two work items may be duplicates of
+  the same underlying work. Return `verdict` and a `reason` citing concrete
+  differences or similarities from the items. Return strict JSON only.
+user: |
+  Adjudicate: duplicate, related or distinct?
+  Item A: {{item_a_json}}
+  Item B: {{item_b_json}}
+schema:
+  type: object
+  additionalProperties: false
+  properties:
+    verdict: {type: string, enum: [duplicate, related, distinct]}
+    reason: {type: string, nullable: true}
+  required: [verdict]

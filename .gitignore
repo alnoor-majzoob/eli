@@ -1,0 +1,31 @@
+# node
+node_modules/
+.pnpm-store/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# local data & env
+.env
+.env.*
+!.env.example
+!.env.prod.example
+.data/
+*.db
+*.sqlite3
+
+# generated noise
+apps/web/.vite/
+infra/compose/.env
+.DS_Store

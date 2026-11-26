@@ -1,0 +1,54 @@
+{
+  "scenario": 1,
+  "name": "Meeting/Email to Execution",
+  "description": "Seeded starting state: a weekly K-201 Overhaul meeting (m365-sim) with a requirement to replace the pump assembly on line 3; existing task 'Order replacement seal kit' and project 'Compressor K-201 Overhaul' in the graph.",
+  "seeded_by": "make seed-demo (scripts/seed_demo.sh); demo kit: docs/runbooks/scenario-1.md",
+  "entities": {
+    "objectives": [
+      {
+        "title": "Reliability — K-201 overhaul availability ≥ 99%",
+        "type": "objective",
+        "department": "operations",
+        "status": "active",
+        "owner": "fatma@example.invalid"
+      }
+    ],
+    "demands": [
+      {
+        "title": "Replace pump assembly on line 3",
+        "type": "task",
+        "status": "pending",
+        "priority": "high",
+        "due_date": "2026-11-28"
+      }
+    ],
+    "work_items": [
+      {
+        "title": "Order replacement seal kit",
+        "type": "task",
+        "status": "active",
+        "department": "maintenance",
+        "owner": "fatma@example.invalid",
+        "duplicate_of": "Replace pump assembly on line 3"
+      },
+      {
+        "title": "Compressor K-201 Overhaul",
+        "type": "project",
+        "status": "active",
+        "department": "maintenance",
+        "owner": "fatma@example.invalid",
+        "related_to": "Reliability — K-201 overhaul availability ≥ 99%"
+      }
+    ],
+    "sim_records": {
+      "m365": [
+        {
+          "type": "meeting",
+          "subject": "K-201 Overhaul Weekly",
+          "participants": ["fatma@example.invalid", "salim@example.invalid"],
+          "notes": "Weekly review — pump assembly on line 3 failed; replace by Friday."
+        }
+      ]
+    }
+  }
+}

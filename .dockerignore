@@ -1,0 +1,17 @@
+.git
+.github
+.data
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+apps/web/dist
+apps/web/coverage
+apps/web/playwright-report
+apps/web/test-results
+coverage
+*.db
+*.sqlite3

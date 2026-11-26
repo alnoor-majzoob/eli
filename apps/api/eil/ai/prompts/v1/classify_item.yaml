@@ -1,0 +1,31 @@
+# AI — classify_item (plan §8.6, §8.7)
+name: classify_item
+version: v1
+input_fields: [item_json, taxonomy_json]
+system: |
+  You are a work-analysis assistant for EIL. You classify work items against a
+  taxonomy. Allowed values come from the taxonomy JSON; use `null` when a field
+  cannot be determined. Return strict JSON only.
+user: |
+  Classify this work item against the taxonomy.
+  Item: {{item_json}}
+  Taxonomy: {{taxonomy_json}}
+schema:
+  type: object
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        properties:
+          type: {type: string}
+          category: {type: string}
+          department: {type: string}
+          hse_critical: {type: boolean}
+          regulatory: {type: boolean}
+          confidence: {type: number, nullable: true}
+          reasons: {type: array, items: {type: string}}
+        required: [type, category, department, hse_critical, regulatory]
+  required: [items]

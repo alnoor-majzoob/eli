@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.5
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^apps/api/
+      - id: ruff-format
+        files: ^apps/api/
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy (api)
+        entry: bash -lc 'cd apps/api && uv run mypy eil'
+        language: system
+        pass_filenames: false
+        files: ^apps/api/.*\.py$
+      - id: eslint
+        name: eslint (web)
+        entry: bash -lc 'pnpm --filter @eil/web lint'
+        language: system
+        pass_filenames: false
+        files: ^apps/web/.*\.(ts|tsx)$
+      - id: prettier
+        name: prettier (web)
+        entry: bash -lc 'pnpm exec prettier --check "apps/web/**/*.{ts,tsx,css,json,md}"'
+        language: system
+        pass_filenames: false
+        files: ^apps/web/
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.9.1
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
