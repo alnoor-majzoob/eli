@@ -18,6 +18,7 @@ Authentication is the demo/dev login (`APP_ENV=demo`, `AUTH_MODE=dev`).
 | API | `0.0.0.0:18000` | `8000` | Yes |
 | Postgres | none | `5432` | No |
 | Redis | none | `6379` | No |
+| M365 sim | `127.0.0.1:19105` | `9105` | No |
 | MinIO API | `127.0.0.1:18010` | `9000` | No |
 | MinIO console | `127.0.0.1:18011` | `9001` | No |
 | Mailpit | `127.0.0.1:18025` | `8025` | No |
@@ -98,6 +99,7 @@ Optional values:
 
 - `EIL_WEB_PORT` / `EIL_API_PORT` — change if 18080/18000 are taken.
 - `AI_ENABLED=true` and `GROQ_API_KEY` — live AI; otherwise replay/off.
+- `M365_SIM_URL` / `M365_SIM_PORT` — M365 simulator URL (default `http://m365-sim:9105`) and loopback host port.
 - `MINIO_ROOT_PASSWORD` — only needed with the `extras` profile.
 
 Validate the rendered configuration:
@@ -121,6 +123,21 @@ Seed the reference data once, after the API is healthy:
 docker compose -f infra/compose/docker-compose.prod.yml --env-file .env.prod \
   exec api python scripts/seed_reference.py
 ```
+
+To enable M365 sim mail sync, ensure the source is enabled and AI is configured as needed:
+
+```bash
+# verify m365-sim is up
+curl -fsS http://127.0.0.1:19105/health
+
+# re-trigger sync via API (admin auth required) or use UI Integrations > Sync now
+# POST /api/v1/integrations/sources/{source_id}/sync
+```
+
+For AI extraction suggestions from synced mail/meetings, set `AI_ENABLED=true` and
+appropriate `LLM_MODE`/provider keys in `.env.prod`, then rebuild/restart
+`api worker beat`. Synced messages become `SourceArtifact`s; AI produces
+suggestions in AI Inbox (no auto-created plans).
 
 Start the optional MinIO/Mailpit services only if needed:
 
