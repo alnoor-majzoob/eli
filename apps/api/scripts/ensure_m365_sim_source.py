@@ -21,6 +21,9 @@ from sqlalchemy import select  # noqa: E402
 from eil.core.config import get_settings  # noqa: E402
 from eil.core.db import create_engine, create_session_factory  # noqa: E402
 from eil.modules.audit.guards import install_audit_guards  # noqa: E402
+
+# Import model modules so SQLAlchemy resolves FKs across modules.
+import eil.modules  # noqa: E402, F401
 from eil.modules.integration.models import ApprovedSource  # noqa: E402
 
 
