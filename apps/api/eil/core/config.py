@@ -17,7 +17,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_DEV_JWT_SECRET = "dev-only-not-for-production-change-me-32b"
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+_resolved = Path(__file__).resolve()
+# Source layout: <repo>/apps/api/eil/core/config.py -> parents[4] == repo root.
+# Container layout: /app/eil/core/config.py -> parents[2] == /app.
+try:
+    REPO_ROOT = _resolved.parents[4]
+except IndexError:
+    REPO_ROOT = _resolved.parents[2]
 DEFAULT_DATA_DIR = REPO_ROOT / ".data"
 SQLITE_PREFIX = "sqlite+aiosqlite:///"
 

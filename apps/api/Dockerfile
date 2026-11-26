@@ -13,6 +13,7 @@ WORKDIR /app
 COPY apps/api/pyproject.toml apps/api/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
+COPY connectors/ ./connectors/
 COPY apps/api/ ./
 RUN uv sync --frozen --no-dev
 
