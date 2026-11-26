@@ -380,7 +380,7 @@ both are set). `type` must be one of the built-in connector systems
 
 Older databases had a drift between models and migrations (the `Score`
 table was missing timestamp columns). Fixed by migrations
-`0008_add_missing_timestamp_columns` + `0009_drop_score_version`; a
+`0008_add_missing_ts` + `0009_drop_score_version`; a
 regression test (`apps/api/tests/test_migration_drift.py`) runs
 `alembic upgrade head` on a scratch DB and diffs against the models.
 

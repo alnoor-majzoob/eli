@@ -1,6 +1,6 @@
 """Phase 9 — add missing timestamp columns to drifted tables (user-test finding).
 
-Revision ID: 0008_add_missing_timestamp_columns
+Revision ID: 0008_add_missing_ts
 Revises: 0007_assistant_conversations
 Create Date: 2026-11-23
 
@@ -21,7 +21,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0008_add_missing_timestamp_columns"
+revision: str = "0008_add_missing_ts"
 down_revision: str | None = "0007_assistant_conversations"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

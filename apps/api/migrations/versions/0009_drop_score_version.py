@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0009_drop_score_version"
-down_revision: str | None = "0008_add_missing_timestamp_columns"
+down_revision: str | None = "0008_add_missing_ts"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

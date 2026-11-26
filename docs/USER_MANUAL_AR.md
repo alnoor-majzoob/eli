@@ -356,7 +356,7 @@ POST /api/v1/auth/dev-login  {"role": "integration_admin"}
 
 قواعد البيانات الحالية كانت تحتوي دقائق على دفع بسيط (وجود التوقيتات على
 جدول الدرجات) — تم إصلاحها بالترحيلات
-`0008_add_missing_timestamp_columns` + `0009_drop_score_version`، واختبار
+`0008_add_missing_ts` + `0009_drop_score_version`، واختبار
 يقوم بذلك تلقائيًا على قاعدة عيانة (`tests/test_migration_drift.py`).
 
 ### 7.4 التصميم البلدي والاستضافة

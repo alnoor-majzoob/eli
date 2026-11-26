@@ -30,7 +30,7 @@ ufw enable
 # ---------- Repository ----------
 echo "=== Cloning repository ==="
 mkdir -p /opt/eli
-git clone <your-repo-url> /opt/eli
+git clone https://github.com/alnoor-majzoob/eli /opt/eli
 cd /opt/eli
 
 # ---------- Environment ----------

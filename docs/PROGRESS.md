@@ -261,7 +261,7 @@ Updated by the implementation agent after every task. Status values:
   `updated_at` on `ai_suggestion`, `score_override`, `scoring_model`,
   `scoring_model_criterion`) plus a stray `score.version` —
   `GET /api/v1/prioritization` 500'd on the dev database. Fixed by migrations
-  `0008_add_missing_timestamp_columns` + `0009_drop_score_version`; regression
+  `0008_add_missing_ts` + `0009_drop_score_version`; regression
   test   `apps/api/tests/test_migration_drift.py` (scratch-DB `alembic upgrade
   head` + model diff — 0 drifted tables; audit: `uv run python
   apps/api/tests/test_migration_drift.py` / one-off script `/tmp/drift_audit.py`).
