@@ -130,6 +130,10 @@ To enable M365 sim mail sync, ensure the source is enabled and AI is configured 
 # verify m365-sim is up
 curl -fsS http://127.0.0.1:19105/health
 
+# create/enable an M365 sim source (idempotent); add --enable-ai-processing for AI Inbox suggestions
+docker compose -f infra/compose/docker-compose.prod.yml --env-file .env.prod \
+  exec api python scripts/ensure_m365_sim_source.py --enable-ai-processing
+
 # re-trigger sync via API (admin auth required) or use UI Integrations > Sync now
 # POST /api/v1/integrations/sources/{source_id}/sync
 ```
