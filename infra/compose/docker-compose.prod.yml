@@ -41,6 +41,11 @@ x-api-env: &api-env
   AI_ENABLED: ${AI_ENABLED:-false}
   LLM_MODE: ${LLM_MODE:-replay}
   GROQ_API_KEY: ${GROQ_API_KEY:-}
+  GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+  MODEL_FAST: ${MODEL_FAST:-openai/gpt-oss-20b}
+  MODEL_STRONG: ${MODEL_STRONG:-openai/gpt-oss-120b}
+  MODEL_STT: ${MODEL_STT:-whisper-large-v3-turbo}
+  LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-5}
   CONNECTOR_MODE_M365: ${CONNECTOR_MODE_M365:-sim}
   CONNECTOR_MODE_P6: ${CONNECTOR_MODE_P6:-sim}
   CONNECTOR_MODE_EAM: ${CONNECTOR_MODE_EAM:-sim}
