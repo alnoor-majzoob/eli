@@ -27,8 +27,9 @@ from eil.core.models import utcnow
 from eil.modules.audit.service import record_audit
 from eil.modules.execution.models import WorkItem, WorkLink, WorkType
 from eil.modules.graph.cache import graph_cache
-from eil.modules.identity.rbac import PermissionContext
+from eil.modules.identity.rbac import PermissionContext, resolve_permission_scope
 from eil.modules.integration.models import SourceArtifact
+from eil.modules.seed_data import WORK_EDIT
 
 _EXTRACTED_TYPES: dict[str, WorkType] = {
     "task": WorkType.TASK,
@@ -49,10 +50,37 @@ async def _load_work_item(session: AsyncSession, item_id: Any) -> WorkItem | Non
     )
 
 
+async def _work_edit_scope(session: AsyncSession, ctx: PermissionContext) -> str:
+    return await resolve_permission_scope(session, ctx.roles, WORK_EDIT)
+
+
+def _assert_item_org(ctx: PermissionContext, scope: str, item: WorkItem) -> None:
+    """Reject touching a work item outside the caller's org when scope is own_org."""
+    if scope == "global":
+        return
+    if scope == "none":
+        raise AppError(403, "forbidden", "Insufficient permissions", "Missing work.edit.")
+    if item.org_unit_id != ctx.user.org_unit_id:
+        raise AppError(404, "not_found", "Not found", "Work item not found or not visible.")
+
+
+async def _load_in_scope_item(
+    session: AsyncSession, ctx: PermissionContext, scope: str, item_id: Any
+) -> WorkItem | None:
+    item = await _load_work_item(session, item_id)
+    if item is not None:
+        _assert_item_org(ctx, scope, item)
+    return item
+
+
 async def _promote_extracted(
     session: AsyncSession, ctx: PermissionContext, suggestion: AiSuggestion, payload: dict[str, Any]
 ) -> WorkItem:
     work_type = _EXTRACTED_TYPES.get(str(payload.get("kind", "")), WorkType.TASK)
+    scope = await _work_edit_scope(session, ctx)
+    # New AI-extracted items are created in the reviewer's org unit so own_org
+    # scoping keeps them visible to (and only to) the right people.
+    org_unit_id = None if scope == "global" else ctx.user.org_unit_id
     item = WorkItem(
         type=work_type,
         title=str(payload["title"]),
@@ -67,6 +95,7 @@ async def _promote_extracted(
         priority_tier=payload.get("priority"),
         hse_critical=bool(payload.get("hse_critical")),
         created_by=ctx.user.id,
+        org_unit_id=org_unit_id,
     )
     session.add(item)
     await session.flush()
@@ -133,8 +162,13 @@ async def _promote_extracted(
 
 
 async def _promote_link(
-    session: AsyncSession, suggestion: AiSuggestion, payload: dict[str, Any]
+    session: AsyncSession, ctx: PermissionContext, suggestion: AiSuggestion, payload: dict[str, Any]
 ) -> None:
+    scope = await _work_edit_scope(session, ctx)
+    src = await _load_in_scope_item(session, ctx, scope, payload.get("src_id"))
+    dst = await _load_in_scope_item(session, ctx, scope, payload.get("dst_id"))
+    if src is None or dst is None:
+        raise AppError(404, "not_found", "Not found", "Linked work item not found or not visible.")
     session.add(
         WorkLink(
             src_id=UUID(str(payload["src_id"])),
@@ -148,8 +182,11 @@ async def _promote_link(
     await session.flush()
 
 
-async def _promote_owner(session: AsyncSession, suggestion: AiSuggestion) -> WorkItem | None:
-    item = await _load_work_item(session, suggestion.payload.get("item_id"))
+async def _promote_owner(
+    session: AsyncSession, ctx: PermissionContext, suggestion: AiSuggestion
+) -> WorkItem | None:
+    scope = await _work_edit_scope(session, ctx)
+    item = await _load_in_scope_item(session, ctx, scope, suggestion.payload.get("item_id"))
     if item is not None and suggestion.payload.get("owner_id"):
         item.owner_id = UUID(str(suggestion.payload["owner_id"]))
         session.add(item)
@@ -160,7 +197,8 @@ async def _promote_owner(session: AsyncSession, suggestion: AiSuggestion) -> Wor
 async def _promote_classification(
     session: AsyncSession, ctx: PermissionContext, suggestion: AiSuggestion
 ) -> WorkItem | None:
-    item = await _load_work_item(session, suggestion.payload.get("item_id"))
+    scope = await _work_edit_scope(session, ctx)
+    item = await _load_in_scope_item(session, ctx, scope, suggestion.payload.get("item_id"))
     if item is None:
         return None
     classifications = await classify_item(
@@ -228,9 +266,9 @@ async def accept_suggestion(
         item = await _promote_extracted(session, ctx, suggestion, payload)
         suggestion.resulting_entity = item.id
     elif suggestion.kind == "link":
-        await _promote_link(session, suggestion, payload)
+        await _promote_link(session, ctx, suggestion, payload)
     elif suggestion.kind == "owner":
-        item = await _promote_owner(session, suggestion)
+        item = await _promote_owner(session, ctx, suggestion)
     elif suggestion.kind == "classification":
         item = await _promote_classification(session, ctx, suggestion)
 

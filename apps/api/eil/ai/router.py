@@ -24,15 +24,32 @@ from eil.core.db import get_db
 from eil.core.errors import AppError
 from eil.core.models import utcnow
 from eil.modules.execution.models import WorkItem
-from eil.modules.identity.rbac import PermissionContext, require_permission
+from eil.modules.identity.rbac import (
+    PermissionContext,
+    require_permission,
+    resolve_permission_scope,
+)
 from eil.modules.integration.models import SourceArtifact
-from eil.modules.seed_data import AI_REVIEW, WORK_VIEW
+from eil.modules.seed_data import AI_REVIEW, WORK_EDIT, WORK_VIEW
 
 router = APIRouter(tags=["ai"])
 
 CtxRead = Annotated[PermissionContext, Depends(require_permission(WORK_VIEW))]
 CtxWrite = Annotated[PermissionContext, Depends(require_permission(AI_REVIEW))]
 Db = Annotated[AsyncSession, Depends(get_db)]
+
+
+async def _require_work_edit(session: AsyncSession, ctx: PermissionContext) -> None:
+    """Promotion mutates the work graph; require work.edit in addition to ai.review."""
+    scope = await resolve_permission_scope(session, ctx.roles, WORK_EDIT)
+    if scope == "none":
+        raise AppError(
+            403,
+            "forbidden",
+            "Insufficient permissions",
+            f"Missing permission '{WORK_EDIT}' for your role(s).",
+            extra={"permission": WORK_EDIT},
+        )
 
 
 async def _load_suggestion(session: AsyncSession, suggestion_id: UUID) -> AiSuggestion:
@@ -127,6 +144,7 @@ async def ai_suggestion_accept(
     payload: AiSuggestionAcceptBody | None = Body(default=None),
 ) -> AiSuggestionRead:
     suggestion = await _load_suggestion(session, suggestion_id)
+    await _require_work_edit(session, ctx)
     await accept_suggestion(
         session,
         ctx,
@@ -162,6 +180,9 @@ async def ai_suggestions_bulk(
     accepted: list[UUID] = []
     rejected: list[UUID] = []
     errors: dict[str, str] = {}
+    needs_work_edit = any(item.action == "accept" for item in payload.items)
+    if needs_work_edit:
+        await _require_work_edit(session, ctx)
     for item in payload.items:
         suggestion = (
             (

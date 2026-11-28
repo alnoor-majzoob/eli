@@ -238,6 +238,16 @@ async def _virtual_edges(session: AsyncSession, item_ids: set[UUID]) -> list[Edg
     return edges
 
 
+def _node_in_scope(ctx: PermissionContext, node: Any) -> bool:
+    """Whether a graph node is visible under the caller's org scope."""
+    if ctx.scope == "global":
+        return True
+    if ctx.scope == "none":
+        return False
+    org = getattr(node, "org_unit_id", None)
+    return org is not None and org == ctx.user.org_unit_id
+
+
 async def _edge_read(session: AsyncSession, record: EdgeRecord) -> GraphEdgeRead:
     src_obj = await _load_node_object(session, record.src_id)
     dst_obj = await _load_node_object(session, record.dst_id)
@@ -265,12 +275,13 @@ async def neighbours(
     direction: str = "both",
     include_virtual: bool = True,
 ) -> NeighborsRead:
-    key = f"neighbours:{item_id}:{direction}:{include_virtual}"
+    item = await get_work_item(session, item_id, ctx)
+    scope_key = f"{ctx.scope}:{ctx.user.org_unit_id}"
+    key = f"neighbours:{scope_key}:{item_id}:{direction}:{include_virtual}"
     cached: NeighborsRead | None = graph_cache.get(key)
     if cached is not None:
         return cached
 
-    item = await get_work_item(session, item_id, ctx)
     records = await _load_real_edges(session, {item.id})
     if include_virtual:
         records += await _virtual_edges(session, {item.id})
@@ -278,10 +289,18 @@ async def neighbours(
         records = [record for record in records if record.src_id == item.id]
     elif direction == "in":
         records = [record for record in records if record.dst_id == item.id]
+    edges: list[GraphEdgeRead] = []
+    for record in records:
+        edge = await _edge_read(session, record)
+        # filter by endpoint org scope
+        src_obj = await _load_node_object(session, record.src_id)
+        dst_obj = await _load_node_object(session, record.dst_id)
+        if _node_in_scope(ctx, src_obj) and _node_in_scope(ctx, dst_obj):
+            edges.append(edge)
     result = NeighborsRead(
         node_id=item.id,
         node=_node_read(item),
-        edges=[await _edge_read(session, record) for record in records],
+        edges=edges,
     )
     graph_cache.set(key, result)
     return result
@@ -314,18 +333,21 @@ async def lineage(
     item_id: UUID,
     max_depth: int = MAX_LINEAGE_DEPTH,
 ) -> LineageRead:
-    key = f"lineage:{item_id}:{max_depth}"
+    item = await get_work_item(session, item_id, ctx)
+    scope_key = f"{ctx.scope}:{ctx.user.org_unit_id}"
+    key = f"lineage:{scope_key}:{item_id}:{max_depth}"
     cached: LineageRead | None = graph_cache.get(key)
     if cached is not None:
         return cached
 
-    item = await get_work_item(session, item_id, ctx)
     chain = [item]
     seen = {item.id}
     current_id = item.id
     for _ in range(max_depth):
         nxt = await _next_up(session, current_id)
         if nxt is None or nxt.id in seen:
+            break
+        if not _node_in_scope(ctx, nxt):
             break
         chain.append(nxt)
         seen.add(nxt.id)
@@ -345,13 +367,13 @@ async def path(
     to_id: UUID,
     include_virtual: bool = True,
 ) -> PathRead:
-    key = f"path:{from_id}:{to_id}:{include_virtual}"
+    src = await get_work_item(session, from_id, ctx)
+    dst = await get_work_item(session, to_id, ctx)
+    scope_key = f"{ctx.scope}:{ctx.user.org_unit_id}"
+    key = f"path:{scope_key}:{from_id}:{to_id}:{include_virtual}"
     cached: PathRead | None = graph_cache.get(key)
     if cached is not None:
         return cached
-
-    src = await get_work_item(session, from_id, ctx)
-    dst = await get_work_item(session, to_id, ctx)
 
     adjacency: dict[UUID, list[tuple[UUID, EdgeRecord]]] = {}
 
@@ -444,12 +466,12 @@ async def downstream_impact(
     max_depth: int = MAX_IMPACT_DEPTH,
 ) -> DownstreamImpactRead:
     """Affected nodes with min depth and strongest-path weight (plan §7.4)."""
-    key = f"impact:{item_id}:{max_depth}"
+    root = await get_work_item(session, item_id, ctx)
+    scope_key = f"{ctx.scope}:{ctx.user.org_unit_id}"
+    key = f"impact:{scope_key}:{item_id}:{max_depth}"
     cached: DownstreamImpactRead | None = graph_cache.get(key)
     if cached is not None:
         return cached
-
-    root = await get_work_item(session, item_id, ctx)
 
     # BFS over impact edges in depth waves (cycle-guarded, depth-limited); the same
     # load builds ``in_adj`` (in-edges of discovered nodes).
@@ -500,7 +522,7 @@ async def downstream_impact(
             strongest_path_weight=cur.get(node_id),
         )
         for node_id in impacted_ids
-        if node_id in items_by_id
+        if node_id in items_by_id and _node_in_scope(ctx, items_by_id[node_id])
     ]
     impacts.sort(key=lambda item: (item.depth, -(item.strongest_path_weight or ZERO)))
 

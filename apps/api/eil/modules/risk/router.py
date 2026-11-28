@@ -24,11 +24,12 @@ from eil.modules.identity.rbac import PermissionContext, require_permission
 from eil.modules.risk.models import Escalation
 from eil.modules.risk.schemas import EscalationRead, RiskRadarRow
 from eil.modules.risk.service import PARENT_TYPES
-from eil.modules.seed_data import WORK_VIEW
+from eil.modules.seed_data import WORK_EDIT, WORK_VIEW
 
 router = APIRouter(tags=["risk"])
 
 CtxView = Annotated[PermissionContext, Depends(require_permission(WORK_VIEW))]
+CtxWrite = Annotated[PermissionContext, Depends(require_permission(WORK_EDIT))]
 Db = Annotated[AsyncSession, Depends(get_db)]
 
 
@@ -47,18 +48,13 @@ async def _impact_weight(session: AsyncSession, ctx: PermissionContext, item_id:
 @router.get("/risk/radar", response_model=list[RiskRadarRow])
 async def risk_radar(ctx: CtxView, session: Db) -> list[RiskRadarRow]:
     """Radar rows: delivery confidence x impact for open parent items (plan §9.5)."""
-    items = (
-        (
-            await session.execute(
-                select(WorkItem).where(
-                    WorkItem.type.in_(PARENT_TYPES),
-                    WorkItem.status.notin_((WorkItemStatus.COMPLETED, WorkItemStatus.CANCELLED)),
-                )
-            )
-        )
-        .scalars()
-        .all()
+    radar_stmt = select(WorkItem).where(
+        WorkItem.type.in_(PARENT_TYPES),
+        WorkItem.status.notin_((WorkItemStatus.COMPLETED, WorkItemStatus.CANCELLED)),
     )
+    if ctx.scope == "own_org":
+        radar_stmt = radar_stmt.where(WorkItem.org_unit_id == ctx.user.org_unit_id)
+    items = (await session.execute(radar_stmt)).scalars().all()
     rows = []
     for item in items:
         confidence = item.delivery_confidence or Decimal("0")
@@ -86,17 +82,18 @@ async def list_escalations(
         filters.append(Escalation.acknowledged_at.is_(None))
     elif status:
         filters.append(Escalation.status == status)
-    rows = (
-        (await session.execute(select(Escalation).where(*filters).order_by(Escalation.due_at)))
-        .scalars()
-        .all()
-    )
+    esc_stmt = select(Escalation).where(*filters).order_by(Escalation.due_at)
+    if ctx.scope == "own_org":
+        esc_stmt = esc_stmt.join(WorkItem, WorkItem.id == Escalation.work_item_id).where(
+            WorkItem.org_unit_id == ctx.user.org_unit_id
+        )
+    rows = (await session.execute(esc_stmt)).scalars().all()
     return [EscalationRead.model_validate(row) for row in rows]
 
 
 @router.patch("/escalations/{escalation_id}/acknowledge", response_model=EscalationRead)
-async def acknowledge_escalation(escalation_id: UUID, ctx: CtxView, session: Db) -> EscalationRead:
-    """Acknowledgement tracking (plan §9.6)."""
+async def acknowledge_escalation(escalation_id: UUID, ctx: CtxWrite, session: Db) -> EscalationRead:
+    """Acknowledgement tracking (plan §9.6). Requires work.edit + org scope."""
     row = (
         (await session.execute(select(Escalation).where(Escalation.id == escalation_id)))
         .scalars()
@@ -104,6 +101,16 @@ async def acknowledge_escalation(escalation_id: UUID, ctx: CtxView, session: Db)
     )
     if row is None:
         raise AppError(404, "not_found", "Not found", "Escalation not found.")
+    if ctx.scope == "own_org":
+        org = None
+        if row.work_item_id is not None:
+            org = (
+                await session.execute(
+                    select(WorkItem.org_unit_id).where(WorkItem.id == row.work_item_id)
+                )
+            ).scalar_one_or_none()
+        if org != ctx.user.org_unit_id:
+            raise AppError(404, "not_found", "Not found", "Escalation not found.")
     if row.status == "closed":
         raise AppError(409, "conflict", "Conflict", "Escalation is closed.")
     if row.acknowledged_at is None:

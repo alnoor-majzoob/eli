@@ -27,6 +27,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
+import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 import { usePlatformConfig } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 
@@ -34,38 +35,46 @@ interface NavEntry {
   key: string;
   icon: LucideIcon;
   to?: string;
+  /** Permission required to see this entry; hidden when not granted. */
+  permission?: string;
 }
 
 const NAV_GROUPS: { labelKey: string; items: NavEntry[] }[] = [
   {
     labelKey: "nav.sectionWorkspace",
     items: [
-      { key: "overview", icon: LayoutDashboard, to: "/" },
-      { key: "objectives", icon: Target, to: "/objectives" },
-      { key: "demand", icon: Inbox, to: "/demand" },
-      { key: "portfolio", icon: FolderKanban, to: "/portfolio" },
-      { key: "tasks", icon: ListChecks, to: "/tasks" },
-      { key: "capacity", icon: BarChart2, to: "/capacity" },
-      { key: "executive", icon: TrendingUp, to: "/executive" },
-      { key: "presenter", icon: Monitor, to: "/executive/presenter" },
-      { key: "risk", icon: TriangleAlert, to: "/risk" },
-      { key: "prioritization", icon: ShieldCheck, to: "/prioritization" },
-      { key: "graph", icon: GitMerge, to: "/graph" },
-      { key: "aiInbox", icon: Sparkles, to: "/ai/inbox" },
-      { key: "connectors", icon: PlugZap, to: "/admin/connectors" },
+      { key: "overview", icon: LayoutDashboard, to: "/", permission: PERMISSIONS.DASHBOARD_VIEW },
+      { key: "objectives", icon: Target, to: "/objectives", permission: PERMISSIONS.WORK_VIEW },
+      { key: "demand", icon: Inbox, to: "/demand", permission: PERMISSIONS.WORK_VIEW },
+      { key: "portfolio", icon: FolderKanban, to: "/portfolio", permission: PERMISSIONS.WORK_VIEW },
+      { key: "tasks", icon: ListChecks, to: "/tasks", permission: PERMISSIONS.WORK_VIEW },
+      { key: "capacity", icon: BarChart2, to: "/capacity", permission: PERMISSIONS.WORK_VIEW },
+      { key: "executive", icon: TrendingUp, to: "/executive", permission: PERMISSIONS.DASHBOARD_VIEW },
+      { key: "presenter", icon: Monitor, to: "/executive/presenter", permission: PERMISSIONS.DASHBOARD_VIEW },
+      { key: "risk", icon: TriangleAlert, to: "/risk", permission: PERMISSIONS.WORK_VIEW },
+      { key: "prioritization", icon: ShieldCheck, to: "/prioritization", permission: PERMISSIONS.WORK_VIEW },
+      { key: "graph", icon: GitMerge, to: "/graph", permission: PERMISSIONS.WORK_VIEW },
+      { key: "aiInbox", icon: Sparkles, to: "/ai/inbox", permission: PERMISSIONS.WORK_VIEW },
+      { key: "connectors", icon: PlugZap, to: "/admin/connectors", permission: PERMISSIONS.CONNECTOR_MANAGE },
     ],
   },
   {
     labelKey: "nav.sectionGovernance",
     items: [
-      { key: "approvals", icon: Sparkles, to: "/approvals" },
-      { key: "audit", icon: ShieldAlert, to: "/audit" },
+      { key: "approvals", icon: Sparkles, to: "/approvals", permission: PERMISSIONS.WORK_VIEW },
+      { key: "audit", icon: ShieldAlert, to: "/audit", permission: PERMISSIONS.AUDIT_VIEW },
     ],
   },
 ];
 
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useTranslation();
+  const { can } = usePermissions();
+
+  const groups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !item.permission || can(item.permission)),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
@@ -80,7 +89,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="Primary">
-        {NAV_GROUPS.map((group) => (
+        {groups.map((group) => (
           <div key={group.labelKey}>
             <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-muted">
               {t(group.labelKey)}

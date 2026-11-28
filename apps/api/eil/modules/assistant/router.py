@@ -23,17 +23,18 @@ from eil.core.db import get_db
 from eil.modules.assistant import service
 from eil.modules.assistant.schemas import AskEilRequest, AssistantConversationRead
 from eil.modules.identity.rbac import PermissionContext, require_permission
-from eil.modules.seed_data import WORK_VIEW
+from eil.modules.seed_data import ASSISTANT_USE, WORK_VIEW
 
 router = APIRouter(tags=["assistant"])
 
 CtxRead = Annotated[PermissionContext, Depends(require_permission(WORK_VIEW))]
+CtxUse = Annotated[PermissionContext, Depends(require_permission(ASSISTANT_USE))]
 Db = Annotated[AsyncSession, Depends(get_db)]
 
 
 @router.post("/assistant/ask", response_model=None)
 async def assistant_ask(
-    ctx: CtxRead, session: Db, payload: AskEilRequest
+    ctx: CtxUse, session: Db, payload: AskEilRequest
 ) -> dict[str, Any] | StreamingResponse:
     kwargs: dict[str, Any] = {}
     if payload.max_turns is not None:

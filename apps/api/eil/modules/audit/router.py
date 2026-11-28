@@ -74,7 +74,8 @@ async def audit_export(
     ctx: Annotated[PermissionContext, Depends(require_permission(AUDIT_VIEW))],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> StreamingResponse:
-    rows = await export_audit_csv(session)
+    scope_org = ctx.user.org_unit_id if ctx.scope == "own_org" else None
+    rows = await export_audit_csv(session, org_unit_id=scope_org)
     buffer = io.StringIO()
     writer = csv.DictWriter(
         buffer,

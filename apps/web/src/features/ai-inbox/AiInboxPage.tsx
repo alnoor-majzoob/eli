@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
@@ -15,6 +15,7 @@ import {
   type AiSuggestion,
   type AiSuggestionDetail,
 } from "@/lib/api/ai";
+import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 const KIND_BADGE: Record<string, BadgeProps["variant"]> = {
@@ -39,6 +40,8 @@ type EditDraft = {
 
 export function AiInboxPage() {
   const { t } = useTranslation();
+  const { can } = usePermissions();
+  const canReview = can(PERMISSIONS.AI_REVIEW) && can(PERMISSIONS.WORK_EDIT);
   const [statusFilter, setStatusFilter] = useState("pending");
   const [kindFilter, setKindFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -67,12 +70,15 @@ export function AiInboxPage() {
     [suggestions, kindFilter],
   );
 
-  useEffect(() => {
+  // React 19: reset derived editing state when selection changes without a sync effect body.
+  const [prevSelectedId, setPrevSelectedId] = useState<string | null>(selectedId);
+  if (selectedId !== prevSelectedId) {
+    setPrevSelectedId(selectedId);
     setEditingId(null);
     setDraft(null);
     setRejectingId(null);
     setRejectReason("");
-  }, [selectedId]);
+  }
 
   const refresh = async (id?: string) => {
     await refetch();
@@ -179,9 +185,11 @@ export function AiInboxPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">{t("aiInbox.suggestions")}</CardTitle></CardHeader>
           <CardContent className="space-y-2 pt-0">
-            <Button size="sm" variant="outline" onClick={() => void bulkReject()} disabled={checked.size === 0 || busyId !== null}>
-              {t("aiInbox.bulkReject")} ({checked.size})
-            </Button>
+            {canReview ? (
+              <Button size="sm" variant="outline" onClick={() => void bulkReject()} disabled={checked.size === 0 || busyId !== null}>
+                {t("aiInbox.bulkReject")} ({checked.size})
+              </Button>
+            ) : null}
             {visible.length === 0 ? <p className="py-4 text-sm text-muted-foreground">{t("aiInbox.noSuggestions")}</p> : null}
             <div className="space-y-2">
               {visible.map((suggestion) => (
@@ -191,11 +199,12 @@ export function AiInboxPage() {
                   selected={selectedId === suggestion.id}
                   checked={checked.has(suggestion.id)}
                   busy={busyId === suggestion.id}
+                  canReview={canReview}
                   onClick={() => setSelectedId(suggestion.id)}
                   onAccept={() => void accept(suggestion)}
                   onReject={() => { setSelectedId(suggestion.id); setRejectingId(suggestion.id); setEditingId(null); }}
                   onEditAndAccept={() => openEdit(suggestion)}
-                  onToggle={() => setChecked((prev) => { const next = new Set(prev); next.has(suggestion.id) ? next.delete(suggestion.id) : next.add(suggestion.id); return next; })}
+                  onToggle={() => setChecked((prev) => { const next = new Set(prev); if (next.has(suggestion.id)) { next.delete(suggestion.id); } else { next.add(suggestion.id); } return next; })}
                 />
               ))}
             </div>
@@ -204,6 +213,7 @@ export function AiInboxPage() {
 
         {selectedId && detailQuery.data ? (
           <SuggestionDetail
+            canReview={canReview}
             detail={detailQuery.data}
             busy={busyId === detailQuery.data.id}
             editing={editingId === detailQuery.data.id}
@@ -265,8 +275,8 @@ function draftToPayload(draft: EditDraft, original: Record<string, unknown>): Re
   };
 }
 
-function SuggestionCard({ suggestion, selected, checked, busy, onClick, onAccept, onReject, onEditAndAccept, onToggle }: {
-  suggestion: AiSuggestion; selected: boolean; checked: boolean; busy: boolean;
+function SuggestionCard({ suggestion, selected, checked, busy, canReview = false, onClick, onAccept, onReject, onEditAndAccept, onToggle }: {
+  suggestion: AiSuggestion; selected: boolean; checked: boolean; busy: boolean; canReview?: boolean;
   onClick: () => void; onAccept: () => void; onReject: () => void; onEditAndAccept: () => void; onToggle: () => void;
 }) {
   const { t } = useTranslation();
@@ -283,7 +293,7 @@ function SuggestionCard({ suggestion, selected, checked, busy, onClick, onAccept
         {suggestion.confidence != null ? <span className="text-[10px] text-muted-foreground">{Math.round(Number(suggestion.confidence) * 100)}%</span> : null}
       </div>
       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{String(payload?.summary ?? "")}</p>
-      {suggestion.status === "pending" ? (
+      {suggestion.status === "pending" && canReview ? (
         <div className="mt-2 flex flex-wrap gap-1">
           <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onAccept(); }} disabled={busy}>{t("common.approve")}</Button>
           <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onEditAndAccept(); }} disabled={busy}>{t("aiInbox.editAndAccept")}</Button>
@@ -294,8 +304,8 @@ function SuggestionCard({ suggestion, selected, checked, busy, onClick, onAccept
   );
 }
 
-function SuggestionDetail({ detail, busy, editing, draft, rejecting, rejectReason, onClose, onAccept, onEdit, onDraftChange, onSubmitEdit, onCancelEdit, onRejectStart, onRejectReasonChange, onSubmitReject, onCancelReject }: {
-  detail: AiSuggestionDetail; busy: boolean; editing: boolean; draft: EditDraft | null; rejecting: boolean; rejectReason: string;
+function SuggestionDetail({ detail, busy, canReview = false, editing, draft, rejecting, rejectReason, onClose, onAccept, onEdit, onDraftChange, onSubmitEdit, onCancelEdit, onRejectStart, onRejectReasonChange, onSubmitReject, onCancelReject }: {
+  detail: AiSuggestionDetail; busy: boolean; canReview?: boolean; editing: boolean; draft: EditDraft | null; rejecting: boolean; rejectReason: string;
   onClose: () => void; onAccept: () => void; onEdit: () => void; onDraftChange: (d: EditDraft) => void; onSubmitEdit: () => void; onCancelEdit: () => void;
   onRejectStart: () => void; onRejectReasonChange: (v: string) => void; onSubmitReject: () => void; onCancelReject: () => void;
 }) {
@@ -362,7 +372,7 @@ function SuggestionDetail({ detail, busy, editing, draft, rejecting, rejectReaso
           </div>
         ) : null}
 
-        {pending && !editing && !rejecting ? (
+        {pending && canReview && !editing && !rejecting ? (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={onAccept} disabled={busy}>{t("common.approve")}</Button>
             <Button size="sm" variant="outline" onClick={onEdit} disabled={busy}>{t("aiInbox.editAndAccept")}</Button>

@@ -30,13 +30,13 @@ from eil.modules.prioritization.schemas import (
     ScoreOverrideRead,
 )
 from eil.modules.prioritization.service import apply_override
-from eil.modules.seed_data import CONNECTOR_MANAGE, PRIORITY_OVERRIDE, WORK_VIEW
+from eil.modules.seed_data import ALLOCATION_MANAGE, PRIORITY_OVERRIDE, WORK_VIEW
 
 router = APIRouter(tags=["prioritization"])
 
 CtxRead = Annotated[PermissionContext, Depends(require_permission(WORK_VIEW))]
 CtxOverride = Annotated[PermissionContext, Depends(require_permission(PRIORITY_OVERRIDE))]
-CtxAdmin = Annotated[PermissionContext, Depends(require_permission(CONNECTOR_MANAGE))]
+CtxAllocate = Annotated[PermissionContext, Depends(require_permission(ALLOCATION_MANAGE))]
 Db = Annotated[AsyncSession, Depends(get_db)]
 
 CUT_LINE_TIER = 3  # items at tier ≥ 3 are below the funding cut-line.
@@ -46,14 +46,13 @@ CUT_LINE_TIER = 3  # items at tier ≥ 3 are below the funding cut-line.
 async def prioritized_items(
     ctx: CtxRead, session: Db, limit: int = 200
 ) -> list[PrioritizedItemRead]:
-    rows = (
-        await session.execute(
-            select(Score, WorkItem)
-            .join(WorkItem, WorkItem.id == Score.work_item_id)
-            .order_by(Score.score.desc(), Score.computed_at.desc(), Score.id.desc())
-            .limit(limit)
-        )
-    ).all()
+    board_stmt = (
+        select(Score, WorkItem)
+        .join(WorkItem, WorkItem.id == Score.work_item_id)
+        .order_by(Score.score.desc(), Score.computed_at.desc(), Score.id.desc())
+        .limit(limit)
+    )
+    rows = (await session.execute(board_stmt)).all()
     items = []
     for score, work_item in rows:
         items.append(
@@ -116,7 +115,7 @@ async def prioritization_override(
 
 @router.get("/allocations", response_model=list[AllocationRead])
 async def allocations_list(
-    ctx: CtxAdmin,
+    ctx: CtxAllocate,
     session: Db,
     work_item_id: UUID | None = None,
 ) -> list[AllocationRead]:
@@ -131,7 +130,7 @@ async def allocations_list(
 
 @router.post("/allocations", response_model=AllocationRead, status_code=201)
 async def allocation_create(
-    ctx: CtxAdmin, session: Db, payload: AllocationCreate
+    ctx: CtxAllocate, session: Db, payload: AllocationCreate
 ) -> AllocationRead:
     allocation = Allocation(
         resource_id=payload.resource_id,
@@ -151,7 +150,7 @@ async def allocation_create(
 
 @router.patch("/allocations/{allocation_id}", response_model=AllocationRead)
 async def allocation_update(
-    allocation_id: UUID, ctx: CtxAdmin, session: Db, payload: AllocationUpdate
+    allocation_id: UUID, ctx: CtxAllocate, session: Db, payload: AllocationUpdate
 ) -> AllocationRead:
     allocation = (
         (await session.execute(select(Allocation).where(Allocation.id == allocation_id)))

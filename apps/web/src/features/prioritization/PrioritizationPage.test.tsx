@@ -14,6 +14,20 @@ vi.mock("@/lib/api/prioritization", () => ({
   getPrioritization,
   requestOverride,
 }));
+vi.mock("@/lib/permissions", () => {
+  const actual = { PERMISSIONS: {}, EMPTY_PERMISSIONS: {} };
+  return {
+    ...actual,
+    usePermissions: () => ({
+      permissions: { roles: ["admin"], org_unit_id: null, is_admin: true, permissions: {} },
+      isLoading: false,
+      can: () => true,
+      hasRole: () => true,
+      isAdmin: true,
+      scope: () => "global",
+    }),
+  };
+});
 
 vi.mock("@/lib/api/users", () => ({
   listUsers,
@@ -137,12 +151,13 @@ describe("prioritization board", () => {
     );
     await screen.findByTestId("prioritization-override-form");
     await user.type(screen.getByLabelText("Justification"), "Strategic priority raised");
+    await user.selectOptions(screen.getByLabelText(/approved by/i), "u2");
     await user.click(screen.getByRole("button", { name: /apply override/i }));
 
     expect(requestOverride).toHaveBeenCalledWith("11111111-1111-1111-1111-111111111111", {
       tier: 2,
       justification: "Strategic priority raised",
-      approver_id: "u1",
+      approver_id: "u2",
     });
     expect(await screen.findByText(/override applied/i)).toBeInTheDocument();
     expect(screen.queryByTestId("prioritization-override-form")).toBeNull();

@@ -320,7 +320,8 @@
     "actor": "Actor",
     "from": "From",
     "to": "To",
-    "totalItems": "Total: {{count}}"
+    "totalItems": "Total: {{count}}",
+    "confirmDelete": "Delete this item? This cannot be undone."
   },
   "roles": {
     "executive": "Executive",
@@ -340,5 +341,10 @@
     "chainOk": "Chain OK",
     "chainBroken": "Chain broken at {{at}}",
     "verify": "Verify chain"
+  },
+  "forbidden": {
+    "title": "Not permitted",
+    "body": "Your role does not have access to this page.",
+    "readOnly": "Read-only"
   }
 }

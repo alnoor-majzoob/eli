@@ -38,12 +38,13 @@ from eil.modules.capacity.schemas import (
 from eil.modules.execution.models import Allocation, WorkItem, WorkType
 from eil.modules.identity.models import User
 from eil.modules.identity.rbac import PermissionContext, require_permission
-from eil.modules.seed_data import ALLOCATION_MANAGE, WORK_VIEW
+from eil.modules.seed_data import ALLOCATION_MANAGE, SCENARIO_PROMOTE, WORK_VIEW
 
 router = APIRouter(tags=["capacity"])
 
 CtxView = Annotated[PermissionContext, Depends(require_permission(WORK_VIEW))]
 CtxManage = Annotated[PermissionContext, Depends(require_permission(ALLOCATION_MANAGE))]
+CtxPromote = Annotated[PermissionContext, Depends(require_permission(SCENARIO_PROMOTE))]
 Db = Annotated[AsyncSession, Depends(get_db)]
 
 
@@ -222,7 +223,7 @@ async def scenario_change_endpoint(
 
 @router.post("/scenarios/{scenario_id}/promote", response_model=ScenarioRead)
 async def promote_scenario_endpoint(
-    scenario_id: UUID, ctx: CtxManage, session: Db, payload: ScenarioPromoteRequest
+    scenario_id: UUID, ctx: CtxPromote, session: Db, payload: ScenarioPromoteRequest
 ) -> ScenarioRead:
     """Promote a scenario through the overlay (SoD-6: approver != author)."""
     scenario = await whatif._get_scenario(session, scenario_id)

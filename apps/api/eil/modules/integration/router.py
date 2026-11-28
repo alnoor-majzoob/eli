@@ -77,7 +77,9 @@ async def _get_source(session: AsyncSession, source_id: UUID) -> ApprovedSource:
     return source
 
 
-def _assert_change_allowed(ctx: PermissionContext, data: dict[str, Any]) -> None:
+async def _assert_change_allowed(
+    ctx: PermissionContext, data: dict[str, Any], session: AsyncSession
+) -> None:
     changed = set(data) & _PROTECTED_FIELDS
     if not changed:
         return
@@ -94,7 +96,7 @@ def _assert_change_allowed(ctx: PermissionContext, data: dict[str, Any]) -> None
 
 
 @router.get("/integrations/connectors", response_model=list[ConnectorRead])
-async def connectors_list() -> list[ConnectorRead]:
+async def connectors_list(ctx: CtxAdmin) -> list[ConnectorRead]:
     result = []
     for system in sorted(BUILTIN_CONNECTORS):
         connector = get_connector(system)
@@ -166,7 +168,7 @@ async def source_update(
 ) -> ApprovedSourceRead:
     source = await _get_source(session, source_id)
     data = payload.model_dump(exclude_unset=True)
-    _assert_change_allowed(ctx, data)
+    await _assert_change_allowed(ctx, data, session)
     data.pop("approved_by", None)
     data.pop("reason", None)
 
@@ -334,25 +336,29 @@ async def source_writeback_execute(
 async def webhook_receive(
     system: str,
     record_id: str,
+    ctx: CtxAdmin,
     session: Db,
     payload: Any = Body(default=None),
 ) -> WebhookRead:
-    """Simulator webhook receiver: ingest pushed records (plan §10, T3.3)."""
+    """Simulator webhook receiver: ingest pushed records (plan §10, T3.3).
+
+    Requires connector.manage; only ingests into an *enabled* approved source.
+    """
     if system not in BUILTIN_CONNECTORS:
         raise AppError(404, "not_found", "Not found", "Unknown connector system.")
     source = (
         (
             await session.execute(
                 select(ApprovedSource)
-                .where(ApprovedSource.type == system)
-                .order_by(ApprovedSource.enabled.desc(), ApprovedSource.name, ApprovedSource.id)
+                .where(ApprovedSource.type == system, ApprovedSource.enabled.is_(True))
+                .order_by(ApprovedSource.name, ApprovedSource.id)
             )
         )
         .scalars()
         .first()
     )
     if source is None:
-        raise AppError(404, "not_found", "Not found", "No approved source for this system.")
+        raise AppError(404, "not_found", "Not found", "No enabled approved source for this system.")
     connector = get_connector(system)
     raws = connector.handle_webhook({"record_id": record_id, "payload": payload})
     accepted = await sync_from_webhook(session, source, raws)

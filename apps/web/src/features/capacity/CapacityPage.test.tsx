@@ -28,6 +28,20 @@ vi.mock("@/lib/api/capacity", () => ({
   createAllocation,
   updateAllocation,
 }));
+vi.mock("@/lib/permissions", () => {
+  const actual = { PERMISSIONS: {}, EMPTY_PERMISSIONS: {} };
+  return {
+    ...actual,
+    usePermissions: () => ({
+      permissions: { roles: ["admin"], org_unit_id: null, is_admin: true, permissions: {} },
+      isLoading: false,
+      can: () => true,
+      hasRole: () => true,
+      isAdmin: true,
+      scope: () => "global",
+    }),
+  };
+});
 
 vi.mock("@/lib/api/users", () => ({
   listUsers,

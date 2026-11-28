@@ -183,10 +183,11 @@ async def verify_chain(session: AsyncSession) -> ChainVerification:
     return ChainVerification(rows=len(rows), broken_at=None)
 
 
-async def export_audit_csv(session: AsyncSession, *, limit: int = 10_000) -> list[dict[str, Any]]:
-    rows = (
-        (await session.execute(select(AuditLog).order_by(AuditLog.seq.desc()).limit(limit)))
-        .scalars()
-        .all()
-    )
+async def export_audit_csv(
+    session: AsyncSession, *, limit: int = 10_000, org_unit_id: Any = None
+) -> list[dict[str, Any]]:
+    stmt = select(AuditLog).order_by(AuditLog.seq.desc()).limit(limit)
+    if org_unit_id is not None:
+        stmt = stmt.where(AuditLog.org_unit_id == org_unit_id)
+    rows = (await session.execute(stmt)).scalars().all()
     return [serialize_audit(row) for row in rows]

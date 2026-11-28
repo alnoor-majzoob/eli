@@ -443,7 +443,11 @@ async def pending_approvals(
 
 
 async def list_approvals(
-    session: AsyncSession, ctx: PermissionContext, status: str = "pending", limit: int = 100
+    session: AsyncSession,
+    ctx: PermissionContext,
+    status: str = "pending",
+    limit: int = 100,
+    scope: str = "all",
 ) -> Sequence[Approval]:
     stmt = (
         select(Approval)
@@ -452,6 +456,12 @@ async def list_approvals(
     )
     if ctx.scope == "own_org":
         stmt = stmt.where(WorkItem.org_unit_id == ctx.user.org_unit_id)
+    # "mine" restricts to approvals the caller can act on; "all" returns every
+    # approval in the caller's (org) scope.
+    if scope == "mine":
+        stmt = stmt.where(
+            (Approval.approver_role.in_(ctx.roles)) | (Approval.delegated_to == ctx.user.id)
+        )
     stmt = stmt.order_by(Approval.created_at.desc(), Approval.id.desc()).limit(limit)
     return list((await session.execute(stmt)).scalars().all())
 

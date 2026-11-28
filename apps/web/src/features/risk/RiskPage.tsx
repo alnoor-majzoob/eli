@@ -12,6 +12,7 @@ import {
   type EscalationRow,
   type RadarRow,
 } from "@/lib/api/risk";
+import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
 function riskClass(riskScore: number): string {
   if (riskScore >= 0.8) return "text-destructive";
@@ -26,6 +27,8 @@ function daysUntil(dueAt: string): number {
 
 export function RiskPage() {
   const { t } = useTranslation();
+  const { can } = usePermissions();
+  const canAcknowledge = can(PERMISSIONS.WORK_EDIT);
   const { data: radar = [] } = useQuery({
     queryKey: ["risk", "radar"],
     queryFn: getRiskRadar,
@@ -140,7 +143,7 @@ export function RiskPage() {
                   <Badge variant={escalation.status === "acknowledged" ? "outline" : "destructive"}>
                     {escalation.status}
                   </Badge>
-                  {escalation.status !== "acknowledged" ? (
+                  {escalation.status !== "acknowledged" && canAcknowledge ? (
                     <Button variant="outline" size="sm" onClick={() => acknowledge(escalation)}>
                       {t("risk.acknowledge")}
                     </Button>

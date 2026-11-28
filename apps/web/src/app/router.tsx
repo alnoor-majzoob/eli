@@ -3,6 +3,9 @@ import { createBrowserRouter } from "react-router-dom";
 import { AppShell } from "@/app/app-shell";
 import { RouteErrorPage } from "@/app/route-error-page";
 import { AuthCallbackPage, NotFoundPage, RequireAuth } from "@/app/routes";
+import { ForbiddenPage } from "@/components/forbidden-page";
+import { RequirePermission } from "@/components/permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { ApprovalsPage } from "@/features/governance/ApprovalsPage";
 import { AuditPage } from "@/features/governance/AuditPage";
 import IntegrationPage from "@/features/admin/IntegrationPage";
@@ -38,42 +41,68 @@ export const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { index: true, element: <DashboardPage /> },
+          { path: "forbidden", element: <ForbiddenPage /> },
           {
-            path: "objectives",
-            element: (
-              <ItemsPage
-                type="objective"
-                titleKey="nav.objectives"
-                createTitleKey="nav.objectives"
-              />
-            ),
+            element: <RequirePermission permission={PERMISSIONS.WORK_VIEW} />,
+            children: [
+              {
+                path: "objectives",
+                element: (
+                  <ItemsPage
+                    type="objective"
+                    titleKey="nav.objectives"
+                    createTitleKey="nav.objectives"
+                  />
+                ),
+              },
+              {
+                path: "demand",
+                element: <ItemsPage type="demand" titleKey="nav.demand" createTitleKey="nav.demand" />,
+              },
+              {
+                path: "portfolio",
+                element: (
+                  <ItemsPage type="project" titleKey="nav.portfolio" createTitleKey="nav.portfolio" />
+                ),
+              },
+              { path: "tasks", element: <ItemsPage type="task" titleKey="nav.tasks" createTitleKey="nav.tasks" /> },
+              { path: "items/:id", element: <ItemDetailPage /> },
+              { path: "graph", element: <GraphExplorerPage /> },
+              { path: "risk", element: <RiskPage /> },
+              { path: "prioritization", element: <PrioritizationPage /> },
+            ],
           },
           {
-            path: "demand",
-            element: <ItemsPage type="demand" titleKey="nav.demand" createTitleKey="nav.demand" />,
+            element: <RequirePermission permission={PERMISSIONS.DASHBOARD_VIEW} />,
+            children: [
+              { path: "executive", element: <ExecutivePage /> },
+              { path: "executive/presenter", element: <PresenterPage /> },
+            ],
           },
           {
-            path: "portfolio",
-            element: (
-              <ItemsPage type="project" titleKey="nav.portfolio" createTitleKey="nav.portfolio" />
-            ),
+            element: <RequirePermission permission={PERMISSIONS.WORK_VIEW} />,
+            children: [{ path: "capacity", element: <CapacityPage /> }],
           },
           {
-            path: "tasks",
-            element: <ItemsPage type="task" titleKey="nav.tasks" createTitleKey="nav.tasks" />,
+            element: <RequirePermission permission={PERMISSIONS.ASSISTANT_USE} />,
+            children: [{ path: "assistant", element: <AssistantPage /> }],
           },
-          { path: "capacity", element: <CapacityPage /> },
-          { path: "executive", element: <ExecutivePage /> },
-          { path: "executive/presenter", element: <PresenterPage /> },
-          { path: "risk", element: <RiskPage /> },
-          { path: "assistant", element: <AssistantPage /> },
-          { path: "prioritization", element: <PrioritizationPage /> },
-          { path: "items/:id", element: <ItemDetailPage /> },
-          { path: "graph", element: <GraphExplorerPage /> },
-          { path: "ai/inbox", element: <AiInboxPage /> },
-          { path: "admin/connectors", element: <IntegrationPage /> },
-          { path: "approvals", element: <ApprovalsPage /> },
-          { path: "audit", element: <AuditPage /> },
+          {
+            element: <RequirePermission permission={PERMISSIONS.WORK_VIEW} />,
+            children: [{ path: "ai/inbox", element: <AiInboxPage /> }],
+          },
+          {
+            element: <RequirePermission permission={PERMISSIONS.CONNECTOR_MANAGE} />,
+            children: [{ path: "admin/connectors", element: <IntegrationPage /> }],
+          },
+          {
+            element: <RequirePermission permission={PERMISSIONS.WORK_VIEW} />,
+            children: [{ path: "approvals", element: <ApprovalsPage /> }],
+          },
+          {
+            element: <RequirePermission permission={PERMISSIONS.AUDIT_VIEW} />,
+            children: [{ path: "audit", element: <AuditPage /> }],
+          },
           { path: "*", element: <NotFoundPage /> },
         ],
       },

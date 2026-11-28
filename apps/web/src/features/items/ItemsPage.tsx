@@ -5,11 +5,13 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, Link } from "react-router-dom";
 
+import { Can } from "@/components/permission";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { problemMessage } from "@/lib/api";
 import { createItem, listItemsPage, submitItem, updateItemStatus } from "@/lib/api/items";
+import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
 export interface ItemsPageProps {
   type: string;
@@ -20,6 +22,12 @@ export interface ItemsPageProps {
 export function ItemsPage({ type, titleKey, createTitleKey }: ItemsPageProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { can } = usePermissions();
+  const canEdit = can(PERMISSIONS.WORK_EDIT);
+  const canSubmit = can(PERMISSIONS.WORK_EDIT) || can(PERMISSIONS.DEMAND_CREATE);
+  // Demand-type creation needs demand.create; everything else needs work.edit.
+  const createPermission =
+    type === "demand" ? PERMISSIONS.DEMAND_CREATE : PERMISSIONS.WORK_EDIT;
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [parentId, setParentId] = useState("");
@@ -78,7 +86,8 @@ export function ItemsPage({ type, titleKey, createTitleKey }: ItemsPageProps) {
         </Button>
       </div>
 
-      <Card>
+      <Can permission={createPermission}>
+        <Card>
         <CardHeader>
           <CardTitle className="text-base">{t(createTitleKey)}</CardTitle>
         </CardHeader>
@@ -110,13 +119,16 @@ export function ItemsPage({ type, titleKey, createTitleKey }: ItemsPageProps) {
             </p>
           ) : null}
         </CardContent>
-      </Card>
+        </Card>
+      </Can>
 
       <div className="space-y-3">
         {items.map((item: any) => (
           <WorkItemSummaryCard
             key={item.id}
             item={item}
+            canEdit={canEdit}
+            canSubmit={canSubmit}
             onStatus={(item, status) =>
               run(async () => {
                 await updateItemStatus(item.id, status);
@@ -140,15 +152,19 @@ export function ItemsPage({ type, titleKey, createTitleKey }: ItemsPageProps) {
 
 function WorkItemSummaryCard({
   item,
+  canEdit = false,
+  canSubmit = false,
   onStatus,
   onSubmit,
 }: {
   item: any;
+  canEdit?: boolean;
+  canSubmit?: boolean;
   onStatus: (item: any, status: string) => void;
   onSubmit: (item: any) => void;
 }) {
   const { t } = useTranslation();
-  const writable = ["draft", "submitted", "active", "on_hold"].includes(item.status);
+  const writable = (canEdit || canSubmit) && ["draft", "submitted", "active", "on_hold"].includes(item.status);
   return (
     <Card className="overflow-hidden">
       <div className="h-1 w-full bg-gradient-to-r from-border via-primary/40 to-border" />
@@ -174,10 +190,13 @@ function WorkItemSummaryCard({
           {writable ? (
             <div className="flex items-center gap-2">
               {item.status === "submitted" ? (
+                canSubmit ? (
                 <Button size="sm" variant="outline" onClick={() => onSubmit(item)}>
                   {t("common.submit")}
                 </Button>
+                ) : null
               ) : (
+                canEdit &&
                 item.status !== "approved" &&
                 item.status !== "completed" && (
                   <Button

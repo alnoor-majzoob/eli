@@ -87,8 +87,9 @@ async def _create_source(
     return response.json()
 
 
-async def test_connector_registry_lists_sims(client: AsyncClient) -> None:
-    response = await client.get("/api/v1/integrations/connectors")
+async def test_connector_registry_lists_sims(client: AsyncClient, auth) -> None:
+    integ = await auth("integration_admin")
+    response = await client.get("/api/v1/integrations/connectors", headers=integ)
     assert response.status_code == 200
     connectors_by_system = {entry["system"]: entry for entry in response.json()}
     for system in ("p6", "eam", "erp", "hr", "m365"):

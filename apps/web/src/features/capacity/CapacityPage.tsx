@@ -21,6 +21,7 @@ import {
 } from "@/lib/api/capacity";
 import { listUsers } from "@/lib/api/users";
 import { useAuth } from "@/lib/auth";
+import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 const STATUS_CLASS: Record<string, string> = {
@@ -44,6 +45,9 @@ function weekLabel(value: string): string {
 export function CapacityPage() {
   const { t } = useTranslation();
   const { principal } = useAuth();
+  const { can } = usePermissions();
+  const canAllocate = can(PERMISSIONS.ALLOCATION_MANAGE);
+  const canPromote = can(PERMISSIONS.SCENARIO_PROMOTE);
   const [newScenarioName, setNewScenarioName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -58,6 +62,7 @@ export function CapacityPage() {
   const { data: options = [], refetch: optionsRefetch } = useQuery({
     queryKey: ["capacity", "optimise"],
     queryFn: requestOptimiserOptions,
+    enabled: canAllocate,
   });
   const { data: scenarios = [], refetch: scenariosRefetch } = useQuery({
     queryKey: ["capacity", "scenarios"],
@@ -67,6 +72,7 @@ export function CapacityPage() {
   const { data: allocationRows = [], refetch: allocationsRefetch } = useQuery({
     queryKey: ["capacity", "allocations"],
     queryFn: getAllocations,
+    enabled: canAllocate,
   });
   const [allocForm, setAllocForm] = useState({
     resourceId: "",
@@ -182,6 +188,7 @@ export function CapacityPage() {
         </CardContent>
       </Card>
 
+      {canAllocate ? (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">{t("capacity.allocations")}</CardTitle>
@@ -294,6 +301,7 @@ export function CapacityPage() {
           ) : null}
         </CardContent>
       </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -368,6 +376,7 @@ export function CapacityPage() {
           <CardTitle className="text-base">{t("capacity.whatIf")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {canAllocate ? (
           <div className="flex gap-2">
             <input
               value={newScenarioName}
@@ -389,6 +398,7 @@ export function CapacityPage() {
               {t("capacity.createScenario")}
             </Button>
           </div>
+          ) : null}
           {scenarios.map((scenario) => (
             <div
               key={scenario.id}
@@ -400,6 +410,7 @@ export function CapacityPage() {
                   <Badge variant="outline">{t("capacity.promoted")}</Badge>
                 ) : null}
               </div>
+              {canPromote ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -415,6 +426,7 @@ export function CapacityPage() {
               >
                 {t("capacity.promote")}
               </Button>
+              ) : null}
             </div>
           ))}
           {scenarios.length === 0 ? (

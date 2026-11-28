@@ -20,8 +20,13 @@ from eil.core.security import (
 )
 from eil.modules.identity.demo_users import DEMO_USERS_BY_ROLE, public_roles
 from eil.modules.identity.models import User
-from eil.modules.identity.rbac import PermissionContext, require_permission
-from eil.modules.seed_data import WORK_VIEW
+from eil.modules.identity.rbac import (
+    PermissionContext,
+    PermissionScope,
+    require_permission,
+    resolve_permission_scope,
+)
+from eil.modules.seed_data import ALL_PERMISSIONS, WORK_VIEW
 
 router = APIRouter(tags=["identity"])
 
@@ -101,3 +106,38 @@ async def list_users(ctx: CtxUsers, session: Db) -> list[UserRead]:
 @router.get("/me", response_model=Principal)
 async def me(principal: CurrentPrincipal) -> Principal:
     return principal
+
+
+class EffectivePermissions(BaseModel):
+    roles: list[str]
+    org_unit_id: UUID | None
+    is_admin: bool
+    permissions: dict[str, PermissionScope]
+
+
+@router.get("/me/permissions", response_model=EffectivePermissions)
+async def my_permissions(principal: CurrentPrincipal, session: Db) -> EffectivePermissions:
+    """Effective permission -> scope map for the current principal (UI gating)."""
+    scopes: dict[str, PermissionScope] = {}
+    for permission in ALL_PERMISSIONS:
+        scope = await resolve_permission_scope(session, principal.roles, permission)
+        if scope != "none":
+            scopes[permission] = scope
+    org_unit_id: UUID | None = None
+    row = (
+        await session.execute(select(User.org_unit_id).where(User.subject == principal.subject))
+    ).first()
+    if row is not None and row[0] is not None:
+        org_unit_id = row[0]
+    return EffectivePermissions(
+        roles=principal.roles,
+        org_unit_id=org_unit_id,
+        is_admin="admin" in principal.roles,
+        permissions=scopes,
+    )
+
+
+@router.get("/permissions", response_model=list[str])
+async def permission_catalog(principal: CurrentPrincipal) -> list[str]:
+    """Full permission catalogue (for building role admin UIs)."""
+    return list(ALL_PERMISSIONS)

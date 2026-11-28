@@ -249,7 +249,7 @@ async def test_p6_bind_and_read(app) -> None:
 
 
 async def test_allocations_api(client: AsyncClient, auth, app) -> None:
-    pm = await auth("integration_admin")
+    pm = await auth("resource_manager")
     async with app.state.session_factory() as session:
         user = User(subject="prio-alloc", email="prio-alloc@eil.test", name="Prio Alloc")
         session.add(user)

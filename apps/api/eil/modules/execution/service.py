@@ -813,18 +813,13 @@ async def benefit_rollup(session: AsyncSession, ctx: PermissionContext) -> list[
     key results aligned through ``aligns_to`` links, and the benefit-measurement
     roll-up (actual/target/forecast) with an on-track flag.
     """
-    objectives = (
-        (
-            await session.execute(
-                select(WorkItem).where(
-                    WorkItem.type == WorkType.OBJECTIVE,
-                    WorkItem.status == WorkItemStatus.ACTIVE,
-                )
-            )
-        )
-        .scalars()
-        .all()
+    obj_stmt = select(WorkItem).where(
+        WorkItem.type == WorkType.OBJECTIVE,
+        WorkItem.status == WorkItemStatus.ACTIVE,
     )
+    if ctx.scope == "own_org":
+        obj_stmt = obj_stmt.where(WorkItem.org_unit_id == ctx.user.org_unit_id)
+    objectives = (await session.execute(obj_stmt)).scalars().all()
     rows: list[BenefitRollupRow] = []
     for objective in objectives:
         benefit_ids = [

@@ -77,9 +77,11 @@ async def approvals(
     session: Annotated[AsyncSession, Depends(get_db)],
     status: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+    scope: Annotated[str | None, Query(pattern="^(mine|all)$")] = None,
 ) -> ApprovalPage:
     selected = status or "pending"
-    rows = await list_approvals(session, ctx, status=selected, limit=limit)
+    effective_scope = scope or "all"
+    rows = await list_approvals(session, ctx, status=selected, limit=limit, scope=effective_scope)
     return ApprovalPage(items=list(rows), total=len(rows))
 
 
@@ -145,6 +147,7 @@ async def approval_delegate(
     ctx: Annotated[PermissionContext, Depends(require_permission(WORK_VIEW))],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> Approval:
+    await _get_approval_for_ctx(session, approval_id, ctx)
     return await delegate_approval(session, ctx, approval_id, payload.delegate_to)
 
 

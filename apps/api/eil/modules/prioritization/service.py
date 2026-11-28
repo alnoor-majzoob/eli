@@ -216,6 +216,8 @@ async def apply_override(
     )
     if work_item is None:
         raise AppError(404, "not_found", "Not found", "Work item not found.")
+    if ctx.scope == "own_org" and work_item.org_unit_id != ctx.user.org_unit_id:
+        raise AppError(404, "not_found", "Not found", "Work item not found.")
     score = (
         (await session.execute(select(Score).where(Score.work_item_id == work_item_id)))
         .scalars()

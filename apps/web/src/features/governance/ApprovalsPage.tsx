@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { decideApproval, listInbox } from "@/lib/api/approvals";
 import { problemMessage } from "@/lib/api";
+import { usePermissions } from "@/lib/permissions";
 
 export function ApprovalsPage() {
   const { t } = useTranslation();
+  const { permissions } = usePermissions();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [comment, setComment] = useState("");
@@ -19,6 +21,16 @@ export function ApprovalsPage() {
     queryFn: () => listInbox(),
   });
   const approvals: any[] = data?.items ?? data?.data ?? [];
+
+  // Cosmetic gating; backend `_authorize_approver` + SOD-1 is the real check.
+  const canDecide = (approval: any): boolean => {
+    if (permissions.is_admin) return true;
+    const role = approval.approver_role;
+    const perm = role === "dept_head" ? "dept_head.approve" : "demand.approve";
+    const roleMatch = permissions.roles.includes(role);
+    const scope = permissions.permissions[perm] ?? "none";
+    return roleMatch && scope !== "none";
+  };
 
   const decide = async (approval: any, decision: "approved" | "rejected") => {
     setBusy(true);
@@ -69,22 +81,30 @@ export function ApprovalsPage() {
                   </td>
                   <td className="py-2">{approval.approver_role}</td>
                   <td className="py-2 text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => decide(approval, "approved")}
-                    >
-                      {t("common.approve")}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => decide(approval, "rejected")}
-                    >
-                      {t("common.reject")}
-                    </Button>
+                    {canDecide(approval) ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => decide(approval, "approved")}
+                        >
+                          {t("common.approve")}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => decide(approval, "rejected")}
+                        >
+                          {t("common.reject")}
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {t("forbidden.readOnly")}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

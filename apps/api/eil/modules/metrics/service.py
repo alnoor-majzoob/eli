@@ -40,6 +40,20 @@ def _visible(rows: Sequence[Any], cutoff: datetime) -> list[Any]:
     return [row for row in rows if _as_naive_utc(row.updated_at) <= cutoff]
 
 
+def _scope_org(stmt: Any, ctx: PermissionContext) -> Any:
+    """Restrict a WorkItem query to the caller's org unit when scope is own_org."""
+    if ctx.scope == "own_org":
+        stmt = stmt.where(WorkItem.org_unit_id == ctx.user.org_unit_id)
+    return stmt
+
+
+def _visible_org(rows: Sequence[Any], ctx: PermissionContext) -> list[Any]:
+    """Filter in-memory rows to the caller's org unit when scope is own_org."""
+    if ctx.scope == "own_org":
+        return [row for row in rows if getattr(row, "org_unit_id", None) == ctx.user.org_unit_id]
+    return list(rows)
+
+
 async def executive_summary(
     session: AsyncSession, ctx: PermissionContext, as_of: datetime | None = None
 ) -> dict[str, Any]:
@@ -59,7 +73,7 @@ async def executive_summary(
         .scalars()
         .all()
     )
-    commitments = _visible(commitments, cutoff)
+    commitments = _visible_org(_visible(commitments, cutoff), ctx)
     by_org_unit: dict[UUID | None, list[WorkItem]] = defaultdict(list)
     for commitment in commitments:
         by_org_unit[commitment.org_unit_id].append(commitment)
@@ -81,7 +95,7 @@ async def executive_summary(
         .scalars()
         .all()
     )
-    priorities = _visible(priorities, cutoff)
+    priorities = _visible_org(_visible(priorities, cutoff), ctx)
     priorities_read = sorted(
         (
             {
@@ -98,6 +112,13 @@ async def executive_summary(
     )[:20]
 
     overloads = await capacity_engine.detect_overloads(session, cutoff.date())
+    if ctx.scope == "own_org":
+        own_resources = set(
+            (await session.execute(select(User.id).where(User.org_unit_id == ctx.user.org_unit_id)))
+            .scalars()
+            .all()
+        )
+        overloads = [row for row in overloads if row["resource_id"] in own_resources]
     capacity_constraints = [
         {
             "resource_id": row["resource_id"],
@@ -132,6 +153,7 @@ async def executive_summary(
         ),
         cutoff,
     )
+    at_risk_rows = _visible_org(at_risk_rows, ctx)
     at_risk = []
     for item in at_risk_rows:
         at_risk.append(
@@ -142,18 +164,13 @@ async def executive_summary(
             }
         )
 
+    esc_stmt = select(Escalation).where(Escalation.acknowledged_at.is_(None))
+    if ctx.scope == "own_org":
+        esc_stmt = esc_stmt.join(WorkItem, WorkItem.id == Escalation.work_item_id).where(
+            WorkItem.org_unit_id == ctx.user.org_unit_id
+        )
     escalations = _visible(
-        (
-            (
-                await session.execute(
-                    select(Escalation)
-                    .where(Escalation.acknowledged_at.is_(None))
-                    .order_by(Escalation.due_at)
-                )
-            )
-            .scalars()
-            .all()
-        ),
+        ((await session.execute(esc_stmt.order_by(Escalation.due_at))).scalars().all()),
         cutoff,
     )
     interventions = [
@@ -166,7 +183,10 @@ async def executive_summary(
         for row in escalations
     ]
 
-    users = {row.id: row.name for row in (await session.execute(select(User.id, User.name))).all()}
+    users_stmt = select(User.id, User.name)
+    if ctx.scope == "own_org":
+        users_stmt = users_stmt.where(User.org_unit_id == ctx.user.org_unit_id)
+    users = {row.id: row.name for row in (await session.execute(users_stmt)).all()}
 
     return {
         "as_of": as_of,

@@ -11,6 +11,7 @@ import { problemMessage } from "@/lib/api";
 import { getPrioritization, requestOverride, type PrioritizedItem } from "@/lib/api/prioritization";
 import { listUsers, type UserRead } from "@/lib/api/users";
 import { useAuth } from "@/lib/auth";
+import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
 const TIER_VARIANTS: Record<number, BadgeProps["variant"]> = {
   1: "success",
@@ -20,6 +21,9 @@ const TIER_VARIANTS: Record<number, BadgeProps["variant"]> = {
 };
 
 const TIERS = [1, 2, 3, 4] as const;
+
+// Roles seeded with priority.override (mirror seed_data).
+const PRIORITY_OVERRIDE_ROLES = new Set(["executive", "portfolio_manager", "admin"]);
 
 function formatScore(score: number): string {
   return Number.isFinite(score) ? score.toFixed(2) : "";
@@ -37,6 +41,8 @@ function rationaleSummary(rationale: PrioritizedItem["rationale"]): string | nul
 export function PrioritizationPage() {
   const { t } = useTranslation();
   const { principal } = useAuth();
+  const { can, permissions } = usePermissions();
+  const canOverride = can(PERMISSIONS.PRIORITY_OVERRIDE);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [tier, setTier] = useState<string>("2");
   const [justification, setJustification] = useState("");
@@ -59,10 +65,18 @@ export function PrioritizationPage() {
   });
   const items: PrioritizedItem[] = data ?? [];
 
-  const defaultApproverId = useMemo(
-    () => users.find((user) => user.subject === principal?.subject)?.id ?? users[0]?.id ?? "",
-    [users, principal?.subject],
+  const selfId = users.find((user) => user.subject === principal?.subject)?.id ?? null;
+  // SOD-2: approver must differ from requester AND hold priority.override.
+  const eligibleApprovers = useMemo(
+    () =>
+      users.filter(
+        (user) =>
+          user.id !== selfId &&
+          (permissions.is_admin || user.roles.includes("admin") || user.roles.some((r) => PRIORITY_OVERRIDE_ROLES.has(r))),
+      ),
+    [users, selfId, permissions.is_admin],
   );
+  const defaultApproverId = eligibleApprovers[0]?.id ?? "";
   const selectedApproverId = approverId || defaultApproverId;
 
   const submitOverride = (item: PrioritizedItem) => {
@@ -137,6 +151,7 @@ export function PrioritizationPage() {
                     className="border-b last:border-b-0"
                   >
                     <td className="py-3 pr-4">
+                      {canOverride ? (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -148,12 +163,13 @@ export function PrioritizationPage() {
                         aria-expanded={isExpanded}
                         aria-label={t("prioritization.toggleOverride", { title: item.title })}
                       >
-                        {isExpanded ? (
+                        {canOverride && isExpanded ? (
                           <ChevronUp className="size-3.5" />
                         ) : (
                           <ChevronDown className="size-3.5" />
                         )}
                       </Button>
+                      ) : null}
                     </td>
                     <td className="py-3 pr-4 text-muted-foreground">{index + 1}</td>
                     <td className="py-3 pr-4">
@@ -183,7 +199,7 @@ export function PrioritizationPage() {
                     <td className="py-3 pr-4 text-muted-foreground">
                       {summary ? <span className="whitespace-nowrap">{summary}</span> : null}
                     </td>
-                    {isExpanded ? (
+                    {canOverride && isExpanded ? (
                       <td colSpan={6} className="py-3">
                         <div
                           data-testid="prioritization-override-form"
@@ -209,10 +225,10 @@ export function PrioritizationPage() {
                               <select
                                 value={selectedApproverId}
                                 onChange={(event) => setApproverId(event.target.value)}
-                                disabled={users.length === 0 || usersLoading}
+                                disabled={eligibleApprovers.length === 0 || usersLoading}
                                 className="h-8 rounded-md border bg-background px-2 text-xs"
                               >
-                                {users.map((user: UserRead) => (
+                                {eligibleApprovers.map((user: UserRead) => (
                                   <option key={user.id} value={user.id}>
                                     {user.name} ({user.subject})
                                   </option>
@@ -235,7 +251,7 @@ export function PrioritizationPage() {
                           <div className="flex items-center gap-2">
                             <Button
                               size="sm"
-                              disabled={!justification.trim() || users.length === 0}
+                              disabled={!justification.trim() || eligibleApprovers.length === 0}
                               onClick={() => submitOverride(item)}
                             >
                               {t("prioritization.override.submit")}

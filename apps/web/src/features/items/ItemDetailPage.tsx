@@ -4,17 +4,22 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { Can } from "@/components/permission";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { problemMessage } from "@/lib/api";
-import { getItem, updateItem, deleteItem, submitItem, listLinks } from "@/lib/api/items";
+import { getItem, updateItem, deleteItem, submitItem, listLinks, deleteLink } from "@/lib/api/items";
 import { listAudit } from "@/lib/api/audit";
+import { PERMISSIONS, usePermissions } from "@/lib/permissions";
 
 export function ItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { can } = usePermissions();
+  const canEdit = can(PERMISSIONS.WORK_EDIT);
+  const canViewAudit = can(PERMISSIONS.AUDIT_VIEW);
   const [item, setItem] = useState<any>(null);
   const [links, setLinks] = useState<any[]>([]);
   const [audit, setAudit] = useState<any[]>([]);
@@ -30,7 +35,9 @@ export function ItemDetailPage() {
       const [itemData, linksData, auditData] = await Promise.allSettled([
         getItem(id),
         listLinks(id),
-        listAudit({ entity_id: id, entity_type: "work_item" }),
+        canViewAudit
+          ? listAudit({ entity_id: id, entity_type: "work_item" })
+          : Promise.resolve([]),
       ]);
       if (!active) return;
       setItem(itemData.status === "fulfilled" ? itemData.value : null);
@@ -41,7 +48,7 @@ export function ItemDetailPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, canViewAudit]);
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -96,24 +103,30 @@ export function ItemDetailPage() {
               <CardTitle className="text-base">{t("common.title")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <input
-                value={displayTitle}
-                onChange={(event) => setTitle(event.target.value)}
-                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              />
-              <Button
-                size="sm"
-                className="mt-3"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    await updateItem(id!, { title: title.trim() });
-                  })
-                }
-              >
-                <Pencil className="size-3.5" />
-                {t("common.edit")}
-              </Button>
+              {canEdit ? (
+                <>
+                  <input
+                    value={displayTitle}
+                    onChange={(event) => setTitle(event.target.value)}
+                    className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    className="mt-3"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        await updateItem(id!, { title: title.trim() });
+                      })
+                    }
+                  >
+                    <Pencil className="size-3.5" />
+                    {t("common.edit")}
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm">{displayTitle}</p>
+              )}
             </CardContent>
           </Card>
 
@@ -135,14 +148,21 @@ export function ItemDetailPage() {
                         {link.link_type}
                       </span>
                       <span className="text-sm">{link.dst_id}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={t("common.delete")}
-                        disabled={busy}
-                      >
-                        <X className="size-3.5" />
-                      </Button>
+                      {canEdit ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={t("common.delete")}
+                          disabled={busy}
+                          onClick={() =>
+                            void run(async () => {
+                              await deleteLink(id!, link.id);
+                            })
+                          }
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -155,35 +175,42 @@ export function ItemDetailPage() {
               <CardTitle className="text-base">{t("common.status")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {["active", "on_hold", "completed", "cancelled"].map((next) => (
-                  <Button
-                    key={next}
-                    variant="outline"
-                    size="sm"
-                    disabled={busy || next === item.status}
-                    onClick={() =>
-                      void run(async () => {
-                        await updateItem(id!, { status: next });
-                      })
-                    }
-                  >
-                    {next}
-                  </Button>
-                ))}
-              </div>
-              <div className="mt-3">
-                <Button
-                  size="sm"
-                  disabled={busy || item.status !== "draft"}
-                  onClick={() => void run(() => submitItem(id!))}
-                >
-                  {t("common.submit")}
-                </Button>
-              </div>
+              {canEdit ? (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {["active", "on_hold", "completed", "cancelled"].map((next) => (
+                      <Button
+                        key={next}
+                        variant="outline"
+                        size="sm"
+                        disabled={busy || next === item.status}
+                        onClick={() =>
+                          void run(async () => {
+                            await updateItem(id!, { status: next });
+                          })
+                        }
+                      >
+                        {next}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="mt-3">
+                    <Button
+                      size="sm"
+                      disabled={busy || item.status !== "draft"}
+                      onClick={() => void run(() => submitItem(id!))}
+                    >
+                      {t("common.submit")}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t("forbidden.readOnly")}</p>
+              )}
             </CardContent>
           </Card>
 
+          {canViewAudit ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">{t("common.recent")}</CardTitle>
@@ -202,30 +229,34 @@ export function ItemDetailPage() {
               </ul>
             </CardContent>
           </Card>
+          ) : null}
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t("common.actions")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const errorData = await deleteItem(id!);
-                  if (errorData) throw new Error(String(errorData));
-                  void navigate("/");
-                })
-              }
-            >
-              <Trash2 className="size-3.5" />
-              {t("common.delete")}
-            </Button>
-          </CardContent>
-        </Card>
+        <Can permission={PERMISSIONS.WORK_EDIT}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("common.actions")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  if (!window.confirm(t("common.confirmDelete"))) return;
+                  void run(async () => {
+                    const errorData = await deleteItem(id!);
+                    if (errorData) throw new Error(String(errorData));
+                    void navigate("/");
+                  });
+                }}
+              >
+                <Trash2 className="size-3.5" />
+                {t("common.delete")}
+              </Button>
+            </CardContent>
+          </Card>
+        </Can>
       </div>
     </div>
   );

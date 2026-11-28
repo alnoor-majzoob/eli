@@ -112,3 +112,84 @@ async def test_auditor_combination_is_rejected(client: AsyncClient, make_token) 
     assert response.status_code == 409
     assert response.json()["code"] == "sod_violation"
     assert response.json()["rule"] == "SOD-5"
+
+
+async def test_me_permissions_reflects_role(client: AsyncClient, auth) -> None:
+    auditor = await auth("auditor")
+    response = await client.get("/api/v1/me/permissions", headers=auditor)
+    assert response.status_code == 200
+    body = response.json()
+    assert "auditor" in body["roles"]
+    assert body["permissions"].get("work.view") == "global"
+    assert body["permissions"].get("audit.view") == "global"
+    assert "work.edit" not in body["permissions"]  # read-only
+    assert body["is_admin"] is False
+
+
+async def test_me_permissions_admin_global(client: AsyncClient, auth) -> None:
+    admin = await auth("admin")
+    body = (await client.get("/api/v1/me/permissions", headers=admin)).json()
+    assert body["is_admin"] is True
+    assert body["permissions"].get("connector.manage") == "global"
+    assert body["permissions"].get("rbac.admin") == "global"
+
+
+async def test_me_permissions_integration_admin_minimal(client: AsyncClient, auth) -> None:
+    headers = await auth("integration_admin")
+    body = (await client.get("/api/v1/me/permissions", headers=headers)).json()
+    assert body["permissions"].get("connector.manage") == "global"
+    assert body["permissions"].get("audit.view") == "own_org"
+    assert "work.view" not in body["permissions"]
+    assert "dashboard.view" not in body["permissions"]
+
+
+async def test_me_permissions_requires_auth(client: AsyncClient) -> None:
+    assert (await client.get("/api/v1/me/permissions")).status_code == 401
+
+
+async def test_connectors_require_auth_and_connector_manage(client: AsyncClient, auth) -> None:
+    assert (await client.get("/api/v1/integrations/connectors")).status_code == 401
+    team = await auth("team_member")
+    assert (await client.get("/api/v1/integrations/connectors", headers=team)).status_code == 403
+    integ = await auth("integration_admin")
+    assert (await client.get("/api/v1/integrations/connectors", headers=integ)).status_code == 200
+
+
+async def test_allocations_require_allocation_manage(client: AsyncClient, auth) -> None:
+    team = await auth("team_member")
+    assert (await client.get("/api/v1/allocations", headers=team)).status_code == 403
+    rm = await auth("resource_manager")
+    assert (await client.get("/api/v1/allocations", headers=rm)).status_code == 200
+
+
+async def test_escalation_acknowledge_requires_work_edit(client: AsyncClient, auth) -> None:
+    # No escalation needed: a read-only user must be rejected before any 404.
+    auditor = await auth("auditor")
+    response = await client.patch(
+        "/api/v1/escalations/00000000-0000-0000-0000-000000000000/acknowledge",
+        headers=auditor,
+    )
+    assert response.status_code == 403
+
+
+async def test_assistant_requires_assistant_use(client: AsyncClient, make_token) -> None:
+    headers = make_token("nobody", ["no_such_role"])  # no assistant.use, no work.view
+    response = await client.post(
+        "/api/v1/assistant/ask", json={"question": "hi"}, headers=headers
+    )
+    assert response.status_code in (401, 403, 409)
+
+
+async def test_cross_org_own_org_scope_filters_work(client: AsyncClient, auth, org_id) -> None:
+    admin = await auth("admin")
+    other = await _create(
+        client, admin, type="task", title="Other org", org_unit_id=str(await org_id("pmo"))
+    )
+    tm = await auth("team_member")
+    listing = await client.get("/api/v1/items", headers=tm)
+    assert listing.status_code == 200
+    assert all(row["id"] != other["id"] for row in listing.json()["items"])
+    # org-less items are not visible to own_org users
+    orgless = await _create(client, admin, type="task", title="Org-less")
+    listing2 = await client.get("/api/v1/items", headers=tm)
+    assert all(row["id"] != orgless["id"] for row in listing2.json()["items"])
