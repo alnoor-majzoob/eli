@@ -16,6 +16,7 @@ import {
   type AiSuggestionDetail,
 } from "@/lib/api/ai";
 import { PERMISSIONS, usePermissions } from "@/lib/permissions";
+import { RejectDialog } from "@/features/ai-inbox/RejectDialog";
 import { cn } from "@/lib/utils";
 
 const KIND_BADGE: Record<string, BadgeProps["variant"]> = {
@@ -124,8 +125,8 @@ export function AiInboxPage() {
     }
   };
 
-  const submitReject = async (suggestion: AiSuggestion) => {
-    const reason = rejectReason.trim();
+  const submitReject = async (suggestion: AiSuggestion, reasonArg?: string) => {
+    const reason = (reasonArg ?? rejectReason).trim();
     if (!reason) return;
     setBusyId(suggestion.id);
     setError(null);
@@ -135,6 +136,7 @@ export function AiInboxPage() {
       setRejectReason("");
     } catch (cause) {
       setError(problemMessage(cause, t("common.error")));
+      throw cause;
     } finally {
       setBusyId(null);
       await refresh(suggestion.id);
@@ -219,7 +221,6 @@ export function AiInboxPage() {
             editing={editingId === detailQuery.data.id}
             draft={editingId === detailQuery.data.id ? draft : null}
             rejecting={rejectingId === detailQuery.data.id}
-            rejectReason={rejectReason}
             onClose={() => setSelectedId(null)}
             onAccept={() => {
               const s = suggestions.find((x) => x.id === detailQuery.data?.id);
@@ -237,9 +238,9 @@ export function AiInboxPage() {
             onCancelEdit={() => { setEditingId(null); setDraft(null); }}
             onRejectStart={() => { setRejectingId(detailQuery.data!.id); setEditingId(null); }}
             onRejectReasonChange={setRejectReason}
-            onSubmitReject={() => {
+            onSubmitReject={(reason?: string) => {
               const s = suggestions.find((x) => x.id === detailQuery.data?.id);
-              if (s) void submitReject(s);
+              if (s) return submitReject(s, reason);
             }}
             onCancelReject={() => { setRejectingId(null); setRejectReason(""); }}
           />
@@ -304,10 +305,10 @@ function SuggestionCard({ suggestion, selected, checked, busy, canReview = false
   );
 }
 
-function SuggestionDetail({ detail, busy, canReview = false, editing, draft, rejecting, rejectReason, onClose, onAccept, onEdit, onDraftChange, onSubmitEdit, onCancelEdit, onRejectStart, onRejectReasonChange, onSubmitReject, onCancelReject }: {
-  detail: AiSuggestionDetail; busy: boolean; canReview?: boolean; editing: boolean; draft: EditDraft | null; rejecting: boolean; rejectReason: string;
+function SuggestionDetail({ detail, busy, canReview = false, editing, draft, rejecting, onClose, onAccept, onEdit, onDraftChange, onSubmitEdit, onCancelEdit, onRejectStart, onRejectReasonChange, onSubmitReject, onCancelReject }: {
+  detail: AiSuggestionDetail; busy: boolean; canReview?: boolean; editing: boolean; draft: EditDraft | null; rejecting: boolean;
   onClose: () => void; onAccept: () => void; onEdit: () => void; onDraftChange: (d: EditDraft) => void; onSubmitEdit: () => void; onCancelEdit: () => void;
-  onRejectStart: () => void; onRejectReasonChange: (v: string) => void; onSubmitReject: () => void; onCancelReject: () => void;
+  onRejectStart: () => void; onRejectReasonChange: (v: string) => void; onSubmitReject: (reason?: string) => void | Promise<unknown>; onCancelReject: () => void;
 }) {
   const { t } = useTranslation();
   const payload = detail.payload as Record<string, unknown>;
@@ -362,15 +363,12 @@ function SuggestionDetail({ detail, busy, canReview = false, editing, draft, rej
           </div>
         )}
 
-        {rejecting ? (
-          <div className="space-y-2 rounded-md border p-3">
-            <label className="block space-y-1"><span>{t("aiInbox.rejectReason")}</span><input className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={rejectReason} onChange={(e) => onRejectReasonChange(e.target.value)} placeholder={t("aiInbox.rejectReasonPlaceholder")} /></label>
-            <div className="flex gap-2">
-              <Button size="sm" variant="destructive" onClick={onSubmitReject} disabled={busy || !rejectReason.trim()}>{t("aiInbox.reject")}</Button>
-              <Button size="sm" variant="outline" onClick={onCancelReject} disabled={busy}>{t("common.cancel")}</Button>
-            </div>
-          </div>
-        ) : null}
+        <RejectDialog
+          open={rejecting}
+          busy={busy}
+          onCancel={onCancelReject}
+          onSubmit={(reason) => { onRejectReasonChange(reason); return onSubmitReject(reason); }}
+        />
 
         {pending && canReview && !editing && !rejecting ? (
           <div className="flex flex-wrap gap-2">

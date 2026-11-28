@@ -184,7 +184,8 @@
     "fieldOwnerHint": "Owner hint",
     "fieldDuePhrase": "Due phrase",
     "reviewReasonPlaceholder": "Optional note / reason",
-    "saveAndAccept": "Save & accept"
+    "saveAndAccept": "Save & accept",
+    "rejectReasonRequired": "A rejection reason is required."
   },
   "integration": {
     "title": "Connectors & sources",
@@ -213,7 +214,8 @@
     "writebacks": "Write-backs",
     "approve": "Approve",
     "execute": "Execute",
-    "noWritebacks": "No pending write-backs."
+    "noWritebacks": "No pending write-backs.",
+    "secondApproverRequired": "A distinct second approver (source.approve) is required."
   },
   "header": {
     "environment": "Environment",

@@ -39,6 +39,35 @@ export function problemMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+/** Error thrown for non-2xx API responses (RFC-9457 problem body attached). */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly body: unknown;
+  constructor(status: number, body: unknown, fallback: string) {
+    super(problemMessage(body, fallback));
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body;
+  }
+  get code(): string | null {
+    return problemCode(this.body);
+  }
+  get isForbidden(): boolean {
+    return this.status === 403 || isForbidden(this.body);
+  }
+}
+
+/** Throw `ApiError` when an openapi-fetch result is not ok. */
+export function ensureOk<T>(
+  result: { data?: T; error?: unknown; response: Response },
+  fallback = "Request failed",
+): T {
+  if (!result.response.ok) {
+    throw new ApiError(result.response.status, result.error ?? null, fallback);
+  }
+  return (result.data ?? (undefined as T));
+}
+
 /** Machine-readable error code from an RFC-9457 problem body, if present. */
 export function problemCode(error: unknown): string | null {
   if (error && typeof error === "object") {

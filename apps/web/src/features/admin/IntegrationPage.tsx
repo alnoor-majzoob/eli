@@ -199,6 +199,7 @@ function SourceRow({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const [rowError, setRowError] = useState<string | null>(null);
   const status = useQuery({
     queryKey: ["integrations", "source-status", source.id],
     queryFn: () => getSourceStatus(source.id),
@@ -212,63 +213,73 @@ function SourceRow({
     queryFn: () => listSourceWritebacks(source.id),
   });
 
-  const doUpdate = async (body: Record<string, unknown>) => {
+  const doUpdate = async (body: Record<string, unknown>): Promise<void> => {
     setBusy(true);
+    setRowError(null);
     try {
       await updateSource(source.id, body);
       onUpdate();
       void queryClient.invalidateQueries({
         queryKey: ["integrations", "source-status", source.id],
       });
-    } catch {
-      /* surfaced via the page-level handler below */
+    } catch (cause) {
+      setRowError(problemMessage(cause, t("common.error")));
+      throw cause;
     } finally {
       setBusy(false);
     }
   };
 
   const toggleEnabled = async () => {
-    setBusy(true);
     try {
       await doUpdate({ enabled: !source.enabled });
-    } finally {
-      setBusy(false);
+    } catch {
+      /* error surfaced in rowError */
     }
   };
 
   const toggleAiProcessing = async () => {
     const next = !source.ai_processing_allowed;
+    setRowError(null);
     if (next && !approvedBy.trim()) {
+      setRowError(t("integration.secondApproverRequired"));
       return; // SOD-4: needs a second approver (plan §13.2)
     }
-    setBusy(true);
     try {
       await doUpdate(
         next
           ? {
               ai_processing_allowed: true,
-              approved_by: approvedBy,
+              approved_by: approvedBy.trim(),
               reason: t("integration.secondApprover"),
             }
           : { ai_processing_allowed: false },
       );
-    } finally {
-      setBusy(false);
       if (next) setApprovedBy("");
+    } catch {
+      /* error surfaced in rowError; keep approver input filled */
     }
   };
 
-  const sync = () => {
+  const sync = async () => {
     setBusy(true);
-    syncSource(source.id)
-      .catch(() => undefined)
-      .finally(() => {
-        setBusy(false);
-        void queryClient.invalidateQueries({
-          queryKey: ["integrations", "source-status", source.id],
-        });
-        onUpdate();
+    setRowError(null);
+    try {
+      const run = await syncSource(source.id);
+      if (run.errors?.length) {
+        setRowError(run.errors.join("; "));
+      } else if (run.last_error) {
+        setRowError(run.last_error);
+      }
+      void queryClient.invalidateQueries({
+        queryKey: ["integrations", "source-status", source.id],
       });
+      onUpdate();
+    } catch (cause) {
+      setRowError(problemMessage(cause, t("common.error")));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -297,7 +308,7 @@ function SourceRow({
               {t("common.error")}×{status.data.error_count}
             </Badge>
           ) : null}
-          <Button variant="outline" size="sm" onClick={sync} disabled={busy}>
+          <Button variant="outline" size="sm" onClick={() => void sync()} disabled={busy}>
             {t("integration.syncNow")}
           </Button>
           <Button variant="outline" size="sm" onClick={() => void toggleEnabled()} disabled={busy}>
@@ -307,7 +318,7 @@ function SourceRow({
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => void deleteSource(source.id).finally(onUpdate)}
+              onClick={() => void deleteSource(source.id).then(onUpdate).catch((cause) => setRowError(problemMessage(cause, t("common.error"))))}
             >
               <Trash2 className="size-3.5" />
               {t("common.delete")}
@@ -332,9 +343,9 @@ function SourceRow({
               {t("integration.enableAiProcessing")}
             </Button>
           )}
-          {source.ai_processing_allowed && !approvedBy ? (
+          {!source.ai_processing_allowed ? (
             <input
-              value=""
+              value={approvedBy}
               placeholder={t("integration.secondApproverPlaceholder")}
               onChange={(event) => setApprovedBy(event.target.value)}
               className="h-7 w-40 rounded-md border bg-background px-2 text-[10px]"
@@ -361,7 +372,7 @@ function SourceRow({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => void resolveSourceConflict(source.id, conflict.id).finally(onUpdate)}
+                onClick={() => void resolveSourceConflict(source.id, conflict.id).then(onUpdate).catch((cause) => setRowError(problemMessage(cause, t("common.error"))))}
               >
                 {t("integration.resolve")}
               </Button>
@@ -385,7 +396,7 @@ function SourceRow({
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => void approveWriteback(source.id, change.id).finally(onUpdate)}
+                    onClick={() => void approveWriteback(source.id, change.id).then(onUpdate).catch((cause) => setRowError(problemMessage(cause, t("common.error"))))}
                   >
                     {t("integration.approve")}
                   </Button>
@@ -394,7 +405,7 @@ function SourceRow({
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => void executeWriteback(source.id, change.id).finally(onUpdate)}
+                    onClick={() => void executeWriteback(source.id, change.id).then(onUpdate).catch((cause) => setRowError(problemMessage(cause, t("common.error"))))}
                   >
                     {t("integration.execute")}
                   </Button>
@@ -403,6 +414,9 @@ function SourceRow({
             </div>
           ))}
         </div>
+      ) : null}
+      {rowError ? (
+        <p role="alert" className="text-xs text-destructive">{rowError}</p>
       ) : null}
     </div>
   );

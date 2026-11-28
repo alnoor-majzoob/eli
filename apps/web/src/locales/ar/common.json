@@ -184,7 +184,8 @@
     "fieldOwnerHint": "تلميح المالك",
     "fieldDuePhrase": "عبارة الاستحقاق",
     "reviewReasonPlaceholder": "ملاحظة / سبب اختياري",
-    "saveAndAccept": "حفظ واعتماد"
+    "saveAndAccept": "حفظ واعتماد",
+    "rejectReasonRequired": "سبب الرفض مطلوب."
   },
   "integration": {
     "title": "الموصلات والمصادر",
@@ -213,7 +214,8 @@
     "writebacks": "الكتابات العكسية",
     "approve": "الموافقة",
     "execute": "تنفيذ",
-    "noWritebacks": "لا توجد كتابات عكسية معلقة."
+    "noWritebacks": "لا توجد كتابات عكسية معلقة.",
+    "secondApproverRequired": "يلزم معتمِد ثانٍ مختلف (source.approve)."
   },
   "header": {
     "environment": "البيئة",

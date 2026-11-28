@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { api } from "@/lib/api";
+import { api, ensureOk } from "@/lib/api";
 
 export interface ConnectorCapability {
   system: string;
@@ -88,17 +88,18 @@ export async function createSource(body: any) {
 }
 
 export async function updateSource(sourceId: string, body: any) {
-  const { data } = await api.PATCH(`/api/v1/integrations/sources/${sourceId}` as any, { body });
-  return (data ?? {}) as ApprovedSource;
+  const result = await api.PATCH(`/api/v1/integrations/sources/${sourceId}` as any, { body });
+  return ensureOk(result as any, "Unable to update source.") as ApprovedSource;
 }
 
 export async function deleteSource(sourceId: string) {
-  await api.DELETE(`/api/v1/integrations/sources/${sourceId}` as any, {});
+  const result = await api.DELETE(`/api/v1/integrations/sources/${sourceId}` as any, {});
+  ensureOk(result as any, "Unable to delete source.");
 }
 
 export async function syncSource(sourceId: string) {
-  const { data } = await api.POST(`/api/v1/integrations/sources/${sourceId}/sync` as any, {});
-  return (data ?? {}) as {
+  const result = await api.POST(`/api/v1/integrations/sources/${sourceId}/sync` as any, {});
+  return ensureOk(result as any, "Unable to sync source.") as {
     id: string;
     status: string;
     records_count: number | null;
@@ -119,11 +120,11 @@ export async function listSourceConflicts(sourceId: string) {
 }
 
 export async function resolveSourceConflict(sourceId: string, conflictId: string) {
-  const { data } = await api.POST(
+  const result = await api.POST(
     `/api/v1/integrations/sources/${sourceId}/conflicts/${conflictId}/resolve` as any,
     {},
   );
-  return (data ?? {}) as SyncConflict;
+  return ensureOk(result as any, "Unable to resolve conflict.") as SyncConflict;
 }
 
 export async function listSourceWritebacks(sourceId: string) {
@@ -139,16 +140,17 @@ export async function submitWriteback(sourceId: string, body: any) {
 }
 
 export async function approveWriteback(sourceId: string, changeId: string) {
-  const { data } = await api.POST(
+  const result = await api.POST(
     `/api/v1/integrations/sources/${sourceId}/writebacks/${changeId}/approve` as any,
     {},
   );
-  return (data ?? {}) as WriteBackChange;
+  return ensureOk(result as any, "Unable to approve write-back.") as WriteBackChange;
 }
 
 export async function executeWriteback(sourceId: string, changeId: string) {
-  await api.POST(
+  const result = await api.POST(
     `/api/v1/integrations/sources/${sourceId}/writebacks/${changeId}/execute` as any,
     {},
   );
+  ensureOk(result as any, "Unable to execute write-back.");
 }
